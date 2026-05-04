@@ -1,0 +1,196 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import {
+  AuthResponse, LoginRequest, Usuario,
+  Produto, ProdutoRequest, Page, AlertasEstoque, Movimentacao, AjusteEstoqueRequest,
+  Categoria, Caixa, ResumoFechamento, Venda, VendaRequest,
+  Despesa, DespesaRequest, TipoDespesa, SaldoDia, RelatorioFinanceiro,
+  Fiado, LancamentoFiado, DashboardData
+} from '../models/models';
+
+const API = '/api/v1';
+
+// ─── Auth Service ────────────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private http = inject(HttpClient);
+  login(req: LoginRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${API}/auth/login`, req);
+  }
+  me(): Observable<AuthResponse> {
+    return this.http.get<AuthResponse>(`${API}/auth/me`);
+  }
+}
+
+// ─── Produto Service ─────────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class ProdutoService {
+  private http = inject(HttpClient);
+
+  listar(busca?: string, categoriaId?: number, pagina = 0, tamanho = 20): Observable<Page<Produto>> {
+    let params = new HttpParams().set('pagina', pagina).set('tamanho', tamanho);
+    if (busca) params = params.set('busca', busca);
+    if (categoriaId) params = params.set('categoriaId', categoriaId);
+    return this.http.get<Page<Produto>>(`${API}/produtos`, { params });
+  }
+  buscarPorId(id: number): Observable<Produto> {
+    return this.http.get<Produto>(`${API}/produtos/${id}`);
+  }
+  buscarPorCodigoBarras(codigo: string): Observable<Produto> {
+    return this.http.get<Produto>(`${API}/produtos/codigo-barras/${codigo}`);
+  }
+  criar(req: ProdutoRequest): Observable<Produto> {
+    return this.http.post<Produto>(`${API}/produtos`, req);
+  }
+  atualizar(id: number, req: ProdutoRequest): Observable<Produto> {
+    return this.http.put<Produto>(`${API}/produtos/${id}`, req);
+  }
+  desativar(id: number): Observable<void> {
+    return this.http.delete<void>(`${API}/produtos/${id}`);
+  }
+  ajustarEstoque(id: number, req: AjusteEstoqueRequest): Observable<Produto> {
+    return this.http.patch<Produto>(`${API}/produtos/${id}/estoque`, req);
+  }
+  listarMovimentacoes(id: number, pagina = 0): Observable<Page<Movimentacao>> {
+    return this.http.get<Page<Movimentacao>>(`${API}/produtos/${id}/movimentacoes`, {
+      params: new HttpParams().set('pagina', pagina)
+    });
+  }
+  getAlertas(): Observable<AlertasEstoque> {
+    return this.http.get<AlertasEstoque>(`${API}/produtos/alertas`);
+  }
+}
+
+// ─── Categoria Service ───────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class CategoriaService {
+  private http = inject(HttpClient);
+  listar(): Observable<Categoria[]> {
+    return this.http.get<Categoria[]>(`${API}/categorias`);
+  }
+  criar(nome: string, descricao: string): Observable<Categoria> {
+    return this.http.post<Categoria>(`${API}/categorias`, { nome, descricao });
+  }
+}
+
+// ─── Caixa Service ───────────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class CaixaService {
+  private http = inject(HttpClient);
+
+  getStatus(): Observable<{ aberto: boolean; caixa?: Caixa }> {
+    return this.http.get<{ aberto: boolean; caixa?: Caixa }>(`${API}/caixa/status`);
+  }
+  getCaixaAtual(): Observable<Caixa> {
+    return this.http.get<Caixa>(`${API}/caixa/atual`);
+  }
+  listarHistorico(): Observable<Caixa[]> {
+    return this.http.get<Caixa[]>(`${API}/caixa/historico`);
+  }
+  abrir(valorAbertura: number): Observable<Caixa> {
+    return this.http.post<Caixa>(`${API}/caixa/abrir`, { valorAbertura });
+  }
+  fechar(valorFechamento: number, observacao?: string): Observable<ResumoFechamento> {
+    return this.http.post<ResumoFechamento>(`${API}/caixa/fechar`, { valorFechamento, observacao });
+  }
+}
+
+// ─── Venda Service ───────────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class VendaService {
+  private http = inject(HttpClient);
+
+  registrar(req: VendaRequest): Observable<Venda> {
+    return this.http.post<Venda>(`${API}/vendas`, req);
+  }
+  buscarPorId(id: number): Observable<Venda> {
+    return this.http.get<Venda>(`${API}/vendas/${id}`);
+  }
+  listarHoje(): Observable<Venda[]> {
+    return this.http.get<Venda[]>(`${API}/vendas/hoje`);
+  }
+  listarPorCaixa(caixaId: number, pagina = 0): Observable<Page<Venda>> {
+    return this.http.get<Page<Venda>>(`${API}/vendas/caixa/${caixaId}`, {
+      params: new HttpParams().set('pagina', pagina)
+    });
+  }
+  cancelar(id: number, motivo: string): Observable<Venda> {
+    return this.http.post<Venda>(`${API}/vendas/${id}/cancelar`, { motivo });
+  }
+}
+
+// ─── Financeiro Service ──────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class FinanceiroService {
+  private http = inject(HttpClient);
+
+  listarTiposDespesa(): Observable<TipoDespesa[]> {
+    return this.http.get<TipoDespesa[]>(`${API}/financeiro/tipos-despesa`);
+  }
+  listarDespesasHoje(): Observable<Despesa[]> {
+    return this.http.get<Despesa[]>(`${API}/financeiro/despesas`);
+  }
+  listarDespesasPorPeriodo(inicio: string, fim: string): Observable<Despesa[]> {
+    const params = new HttpParams().set('inicio', inicio).set('fim', fim);
+    return this.http.get<Despesa[]>(`${API}/financeiro/despesas`, { params });
+  }
+  lancarDespesa(req: DespesaRequest): Observable<Despesa> {
+    return this.http.post<Despesa>(`${API}/financeiro/despesas`, req);
+  }
+  excluirDespesa(id: number): Observable<void> {
+    return this.http.delete<void>(`${API}/financeiro/despesas/${id}`);
+  }
+  getSaldoHoje(): Observable<SaldoDia> {
+    return this.http.get<SaldoDia>(`${API}/financeiro/saldo-hoje`);
+  }
+  getRelatorioHoje(): Observable<RelatorioFinanceiro> {
+    return this.http.get<RelatorioFinanceiro>(`${API}/financeiro/relatorio/hoje`);
+  }
+  getRelatorioMes(): Observable<RelatorioFinanceiro> {
+    return this.http.get<RelatorioFinanceiro>(`${API}/financeiro/relatorio/mes`);
+  }
+  getRelatorioPeriodo(inicio: string, fim: string): Observable<RelatorioFinanceiro> {
+    const params = new HttpParams().set('inicio', inicio).set('fim', fim);
+    return this.http.get<RelatorioFinanceiro>(`${API}/financeiro/relatorio/periodo`, { params });
+  }
+}
+
+// ─── Fiado Service ───────────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class FiadoService {
+  private http = inject(HttpClient);
+
+  listar(nome?: string): Observable<Fiado[]> {
+    let params = new HttpParams();
+    if (nome) params = params.set('nome', nome);
+    return this.http.get<Fiado[]>(`${API}/fiado`, { params });
+  }
+  buscarPorId(id: number): Observable<Fiado> {
+    return this.http.get<Fiado>(`${API}/fiado/${id}`);
+  }
+  criar(req: { nomeCliente: string; telefoneCliente?: string; limiteCredito?: number }): Observable<Fiado> {
+    return this.http.post<Fiado>(`${API}/fiado`, req);
+  }
+  listarLancamentos(id: number): Observable<LancamentoFiado[]> {
+    return this.http.get<LancamentoFiado[]>(`${API}/fiado/${id}/lancamentos`);
+  }
+  lancar(id: number, tipo: 'DEBITO' | 'PAGAMENTO', valor: number, descricao?: string): Observable<LancamentoFiado> {
+    return this.http.post<LancamentoFiado>(`${API}/fiado/${id}/lancamentos`, { tipo, valor, descricao });
+  }
+  bloquear(id: number): Observable<Fiado> {
+    return this.http.post<Fiado>(`${API}/fiado/${id}/bloquear`, {});
+  }
+  quitar(id: number): Observable<Fiado> {
+    return this.http.post<Fiado>(`${API}/fiado/${id}/quitar`, {});
+  }
+}
+
+// ─── Dashboard Service ───────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class DashboardService {
+  private http = inject(HttpClient);
+  getResumo(): Observable<DashboardData> {
+    return this.http.get<DashboardData>(`${API}/dashboard/resumo`);
+  }
+}
