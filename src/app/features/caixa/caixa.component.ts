@@ -334,6 +334,18 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
   `]
 })
 export class CaixaComponent implements OnInit {
+
+  private toNumber(value: any): number {
+  if (typeof value === 'number') return value;
+
+  return Number(
+    String(value)
+      .replace('R$', '')
+      .replace(/\s/g, '')
+      .replace(',', '.')
+  ) || 0;
+}
+
   private caixaSvc  = inject(CaixaService);
   private vendaSvc  = inject(VendaService);
   private produtoSvc = inject(ProdutoService);
@@ -403,6 +415,8 @@ export class CaixaComponent implements OnInit {
   }
 
   adicionarProduto(p: Produto) {
+    console.log('PRODUTO RECEBIDO NO CAIXA:', p);
+console.log('PREÇO VENDA:', p.precoVenda, typeof p.precoVenda);
     if (p.quantidadeEstoque === 0) { this.snack.open('Produto sem estoque!', '', { duration: 3000 }); return; }
     const carr = [...this.carrinho()];
     const idx = carr.findIndex(i => i.produto.id === p.id);
@@ -411,9 +425,13 @@ export class CaixaComponent implements OnInit {
         this.snack.open('Quantidade máxima em estoque!', '', { duration: 2000 }); return;
       }
       carr[idx].quantidade++;
-      carr[idx].subtotal = carr[idx].quantidade * carr[idx].produto.precoVenda;
+      carr[idx].subtotal = carr[idx].quantidade * this.toNumber(carr[idx].produto.precoVenda);
     } else {
-      carr.push({ produto: p, quantidade: 1, subtotal: p.precoVenda });
+      carr.push({
+  produto: p,
+  quantidade: 1,
+  subtotal: this.toNumber(p.precoVenda)
+});
     }
     this.carrinho.set(carr);
     this.resultadosBusca.set([]);
@@ -426,7 +444,7 @@ export class CaixaComponent implements OnInit {
     if (idx < 0) return;
     const novaQtd = carr[idx].quantidade + delta;
     if (novaQtd <= 0) { carr.splice(idx, 1); }
-    else { carr[idx].quantidade = novaQtd; carr[idx].subtotal = novaQtd * carr[idx].produto.precoVenda; }
+    else { carr[idx].quantidade = novaQtd; carr[idx].subtotal = novaQtd * this.toNumber(carr[idx].produto.precoVenda); }
     this.carrinho.set(carr);
   }
 

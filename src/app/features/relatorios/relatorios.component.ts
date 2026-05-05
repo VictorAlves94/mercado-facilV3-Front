@@ -229,10 +229,12 @@ export class RelatoriosComponent implements OnInit {
 
   formasPagamento = signal<{ label: string; icon: string; valor: number; pct: number; cor: string }[]>([]);
 
-  ngOnInit() {
+ngOnInit() {
+  this.vendaSvc.listarHoje().subscribe(v => {
+    this.vendasHoje.set(v);
     this.setPeriodo('mes');
-    this.vendaSvc.listarHoje().subscribe(v => this.vendasHoje.set(v));
-  }
+  });
+}
 
   setPeriodo(p: 'hoje' | 'semana' | 'mes' | 'custom') {
     this.periodo.set(p);
@@ -254,18 +256,60 @@ export class RelatoriosComponent implements OnInit {
     });
   }
 
-  private processarRelatorio(r: RelatorioFinanceiro) {
-    this.relatorio.set(r);
-    const total = r.totalVendas || 1;
-    // Simula formas de pagamento (servidor retorna por categoria em RelatorioVendas, aqui usamos dados do financeiro)
-    this.formasPagamento.set([
-      { label: 'Dinheiro',  icon: '💵', valor: 0, pct: 0, cor: '#4ade80' },
-      { label: 'Pix',       icon: '📱', valor: 0, pct: 0, cor: '#60a5fa' },
-      { label: 'Débito',    icon: '💳', valor: 0, pct: 0, cor: '#f59e0b' },
-      { label: 'Crédito',   icon: '💳', valor: 0, pct: 0, cor: '#a78bfa' },
-    ]);
-    if (r.resumoDiario.length > 0) {
-      this.maxVenda = Math.max(...r.resumoDiario.map(d => d.totalVendas));
+private processarRelatorio(r: RelatorioFinanceiro) {
+  this.relatorio.set(r);
+
+  const mapa: Record<string, number> = {
+    DINHEIRO: 0,
+    PIX: 0,
+    CARTAO_DEBITO: 0,
+    CARTAO_CREDITO: 0
+  };
+
+  this.vendasHoje().forEach(v => {
+    const tipo = (v.formaPagamento || '').toUpperCase();
+
+    if (tipo in mapa) {
+      mapa[tipo] += Number(v.valorTotal) || 0;
     }
+  });
+
+  const totalPagamentos =
+    Object.values(mapa).reduce((a, b) => a + b, 0) || 1;
+
+  this.formasPagamento.set([
+    {
+      label: 'Dinheiro',
+      icon: '💵',
+      valor: mapa['DINHEIRO'],
+      pct: (mapa['DINHEIRO'] / totalPagamentos) * 100,
+      cor: '#4ade80'
+    },
+    {
+      label: 'Pix',
+      icon: '📱',
+      valor: mapa['PIX'],
+      pct: (mapa['PIX'] / totalPagamentos) * 100,
+      cor: '#60a5fa'
+    },
+    {
+      label: 'Débito',
+      icon: '💳',
+      valor: mapa['CARTAO_DEBITO'],
+      pct: (mapa['CARTAO_DEBITO'] / totalPagamentos) * 100,
+      cor: '#f59e0b'
+    },
+    {
+      label: 'Crédito',
+      icon: '💳',
+      valor: mapa['CARTAO_CREDITO'],
+      pct: (mapa['CARTAO_CREDITO'] / totalPagamentos) * 100,
+      cor: '#a78bfa'
+    }
+  ]);
+
+  if (r.resumoDiario.length > 0) {
+    this.maxVenda = Math.max(...r.resumoDiario.map(d => d.totalVendas));
   }
+}
 }
