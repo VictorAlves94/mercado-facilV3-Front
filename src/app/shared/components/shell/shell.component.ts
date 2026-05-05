@@ -22,7 +22,7 @@ interface NavItem {
     <div class="sidebar-header">
       <div class="logo">
         <div class="logo-icon">🛒</div>
-        <span class="logo-text">Mercado<strong>Fácil</strong></span>
+        <span class="logo-text">CAIXA<strong>BSB</strong></span>
       </div>
       <button mat-icon-button (click)="toggleSidebar()" class="collapse-btn" matTooltip="Recolher menu">
         <mat-icon>{{ sidebarCollapsed() ? 'menu' : 'menu_open' }}</mat-icon>
