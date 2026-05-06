@@ -72,7 +72,7 @@ import { RelatorioFinanceiro, Venda } from '../../core/models/models';
           <div class="fp-row">
             <div class="fp-info">
               <span>{{ fp.icon }} {{ fp.label }}</span>
-              <span class="fp-pct">{{ fp.pct }}%</span>
+             <span class="fp-pct">{{ fp.pct | number:'1.1-1' }}%</span>
             </div>
             <div class="fp-bar-wrap">
               <div class="fp-bar" [style.width.%]="fp.pct" [style.background]="fp.cor"></div>
