@@ -220,11 +220,13 @@ export class ShellComponent {
     { path: 'financeiro', label: 'Financeiro',  icon: 'account_balance_wallet' },
     { path: 'fiado',      label: 'Fiado',       icon: 'book_2' },
     { path: 'relatorios', label: 'Relatórios',  icon: 'bar_chart' },
+    { path: 'auditoria',  label: 'Auditoria',   icon: 'manage_search' },
   ];
 
   titleMap: Record<string, string> = {
     dashboard: 'Dashboard', caixa: 'Caixa / PDV', produtos: 'Produtos',
-    financeiro: 'Financeiro', fiado: 'Fiado', relatorios: 'Relatórios'
+    financeiro: 'Financeiro', fiado: 'Fiado', relatorios: 'Relatórios',
+    auditoria:  'Auditoria',
   };
 
   currentTitle = computed(() => {

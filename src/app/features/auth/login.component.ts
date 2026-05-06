@@ -37,7 +37,7 @@ import { TokenHelper } from '../../core/interceptors/auth.interceptor';
     <div class="divider-azul"></div>
 
     <div class="features">
-      @for (f of feats; track f.icon) {
+      @for (f of feats; track f.title) {
         <div class="feat">
           <div class="feat-dot"></div>
           <div>
@@ -104,11 +104,12 @@ import { TokenHelper } from '../../core/interceptors/auth.interceptor';
       </form>
 
       
-       <div class="demo-hint">
-        <span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">shield</span>
-        Acesso seguro · CaixaBSB G.F. v1.0
-    
-      </div>
+      <div style="color: #9aa4b2;">
+  <span class="material-symbols-rounded" style="font-size:13px;vertical-align:middle">
+    shield
+  </span>
+  Acesso seguro · CaixaBSB G.F. v1.0
+</div>
     </div>
   </div>
 </div>

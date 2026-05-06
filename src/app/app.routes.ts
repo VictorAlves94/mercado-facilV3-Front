@@ -15,6 +15,7 @@ export const routes: Routes = [
       { path: 'financeiro', loadComponent: () => import('./features/financeiro/financeiro.component').then(m => m.FinanceiroComponent) },
       { path: 'fiado',      loadComponent: () => import('./features/fiado/fiado.component').then(m => m.FiadoComponent) },
       { path: 'relatorios', loadComponent: () => import('./features/relatorios/relatorios.component').then(m => m.RelatoriosComponent) },
+      { path: 'auditoria',  loadComponent: () => import('./features/auditoria/auditoria.component').then(m => m.AuditoriaComponent) }, 
     ]
   },
   { path: '**', redirectTo: '' }

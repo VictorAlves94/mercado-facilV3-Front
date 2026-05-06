@@ -154,3 +154,16 @@ export interface Page<T> {
   totalElementos: number; totalPaginas: number;
   primeira: boolean; ultima: boolean;
 }
+// ─── Auditoria ───────────────────────────────────────────────
+export interface AuditLog {
+  id: number;
+  usuarioNome: string;
+  acao: string;
+  descricao: string;
+  entidade: string;
+  entidadeId: number;
+  entidadeReferencia: string;
+  valorAnterior: string;
+  valorPosterior: string;
+  criadoEm: string;
+}

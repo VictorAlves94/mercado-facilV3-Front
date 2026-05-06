@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+
 import {
-  AuthResponse, LoginRequest, Usuario,
+  AuthResponse, LoginRequest, Usuario,AuditLog ,
   Produto, ProdutoRequest, Page, AlertasEstoque, Movimentacao, AjusteEstoqueRequest,
   Categoria, Caixa, ResumoFechamento, Venda, VendaRequest,
   Despesa, DespesaRequest, TipoDespesa, SaldoDia, RelatorioFinanceiro,
@@ -192,5 +193,45 @@ export class DashboardService {
   private http = inject(HttpClient);
   getResumo(): Observable<DashboardData> {
     return this.http.get<DashboardData>(`${API}/dashboard/resumo`);
+  }
+}
+
+// ─── Auditoria Service ───────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class AuditoriaService {
+  private http = inject(HttpClient);
+
+  listar(pagina = 0, tamanho = 50, filtros?: {
+    usuarioId?: number;
+    entidade?: string;
+    inicio?: string;
+    fim?: string;
+  }): Observable<Page<AuditLog>> {
+    let params = new HttpParams()
+      .set('pagina', pagina)
+      .set('tamanho', tamanho);
+
+    if (filtros?.usuarioId) params = params.set('usuarioId', filtros.usuarioId);
+    if (filtros?.entidade)  params = params.set('entidade',  filtros.entidade);
+    if (filtros?.inicio)    params = params.set('inicio',    filtros.inicio);
+    if (filtros?.fim)       params = params.set('fim',       filtros.fim);
+
+    return this.http.get<Page<AuditLog>>(`/api/v1/auditoria`, { params });
+  }
+
+  listarSuspeitas(data?: string): Observable<AuditLog[]> {
+    let params = new HttpParams();
+    if (data) params = params.set('data', data);
+    return this.http.get<AuditLog[]>(`/api/v1/auditoria/suspeitas`, { params });
+  }
+
+  cancelamentosPorOperador(data?: string): Observable<{ operador: string; totalCancelamentos: number }[]> {
+    let params = new HttpParams();
+    if (data) params = params.set('data', data);
+    return this.http.get<any[]>(`/api/v1/auditoria/cancelamentos-por-operador`, { params });
+  }
+
+  historicoEntidade(entidade: string, id: number): Observable<AuditLog[]> {
+    return this.http.get<AuditLog[]>(`/api/v1/auditoria/entidade/${entidade}/${id}`);
   }
 }
