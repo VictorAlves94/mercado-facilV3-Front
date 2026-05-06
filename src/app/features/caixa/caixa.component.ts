@@ -32,7 +32,7 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
       <div class="abertura-form">
         <div class="input-money">
           <span>R$</span>
-          <input type="number" step="0.01" [(ngModel)]="valorAbertura" placeholder="0,00" min="0">
+          <input type="number" step="0.01" [ngModel]="valorRecebido()" (ngModelChange)="valorRecebido.set(+$event)" placeholder="0,00">
         </div>
         <button mat-flat-button color="primary" class="mf-pdv-btn" (click)="abrirCaixa()" [disabled]="abrindo()">
           <mat-icon>lock_open</mat-icon>
@@ -151,7 +151,7 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
               <span>R$</span>
               <input type="number" step="0.01" [(ngModel)]="valorRecebido" placeholder="0,00" (input)="calcularTroco()">
             </div>
-            @if (valorRecebido > 0) {
+            @if (valorRecebido() > 0) {
               <div class="troco" [class.ok]="troco() >= 0" [class.insuf]="troco() < 0">
                 <span>{{ troco() >= 0 ? 'Troco' : 'Faltam' }}</span>
                 <strong>{{ (troco() < 0 ? troco() * -1 : troco()) | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</strong>
@@ -362,7 +362,7 @@ export class CaixaComponent implements OnInit {
   registrando = signal(false);
 
   valorAbertura = 0;
-  valorRecebido = 0;
+  valorRecebido = signal(0);
   buscaInput   = '';
   private buscaTimer: any;
 
@@ -374,7 +374,7 @@ export class CaixaComponent implements OnInit {
   ];
 
   totalCarrinho = computed(() => this.carrinho().reduce((s, i) => s + i.subtotal, 0));
-  troco = computed(() => this.valorRecebido - this.totalCarrinho());
+  troco = computed(() => this.valorRecebido() - this.totalCarrinho());
 
   ngOnInit() { this.verificarCaixa(); }
 
@@ -462,13 +462,13 @@ console.log('PREÇO VENDA:', p.precoVenda, typeof p.precoVenda);
 
     const itens: ItemVendaRequest[] = this.carrinho().map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade }));
     const req: any = { formaPagamento: this.formaPagamento(), itens };
-    if (this.formaPagamento() === 'DINHEIRO' && this.valorRecebido > 0) req.valorRecebido = this.valorRecebido;
+    if (this.formaPagamento() === 'DINHEIRO' && this.valorRecebido() > 0) req.valorRecebido = this.valorRecebido();
 
     this.vendaSvc.registrar(req).subscribe({
       next: v => {
         this.ultimaVenda.set(v);
         this.limparCarrinho();
-        this.valorRecebido = 0;
+        this.valorRecebido.set(0);
         this.verificarCaixa();
         this.registrando.set(false);
         this.snack.open(`Venda ${v.numeroVenda} registrada!`, '', { duration: 3000 });

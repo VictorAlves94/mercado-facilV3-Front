@@ -16,6 +16,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { ProdutoService, CategoriaService } from '../../core/services/services';
 import { Produto, Categoria, AlertasEstoque } from '../../core/models/models';
+import { LojaSelectorComponent } from '../../shared/components/loja-selector/loja-selector.component';
 
 @Component({
   selector: 'app-produtos',
@@ -23,7 +24,7 @@ import { Produto, Categoria, AlertasEstoque } from '../../core/models/models';
   imports: [CommonModule, ReactiveFormsModule, MatTableModule, MatPaginatorModule,
     MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule,
     MatDialogModule, MatSelectModule, MatSnackBarModule, MatChipsModule,
-    MatTabsModule, MatTooltipModule, CurrencyPipe, DatePipe],
+    MatTabsModule, MatTooltipModule, CurrencyPipe, DatePipe ,LojaSelectorComponent ],
   template: `
 <div class="mf-page">
   <div class="mf-section-header">
@@ -107,6 +108,7 @@ import { Produto, Categoria, AlertasEstoque } from '../../core/models/models';
           }
         </mat-select>
       </mat-form-field>
+            <app-loja-selector (lojaChange)="onLojaChange($event)"></app-loja-selector>
     </div>
   </div>
 
@@ -324,6 +326,7 @@ export class ProdutosComponent implements OnInit {
   private busca$ = new Subject<string>();
   private buscaAtual = '';
   private categoriaAtual: number | null = null;
+   private lojaAtual: number | null = null;
   private paginaAtual = 0;
 
   produtoForm = this.fb.group({
@@ -343,9 +346,9 @@ export class ProdutosComponent implements OnInit {
       .subscribe(b => { this.buscaAtual = b; this.paginaAtual = 0; this.carregarProdutos(); });
   }
 
-  carregarProdutos() {
+ carregarProdutos() {
     this.loading.set(true);
-    this.produtoSvc.listar(this.buscaAtual || undefined, this.categoriaAtual ?? undefined, this.paginaAtual)
+    this.produtoSvc.listar(this.buscaAtual || undefined, this.categoriaAtual ?? undefined, this.paginaAtual, 20, this.lojaAtual ?? undefined)
       .subscribe({ next: p => { this.dataSource.data = p.content; this.totalElementos.set(p.totalElementos); this.loading.set(false); },
                    error: () => this.loading.set(false) });
   }
@@ -354,6 +357,7 @@ export class ProdutosComponent implements OnInit {
 
   onBusca(e: Event) { this.busca$.next((e.target as HTMLInputElement).value); }
   onCategoria(id: number | null) { this.categoriaAtual = id; this.paginaAtual = 0; this.carregarProdutos(); }
+  onLojaChange(lojaId: number | null) { this.lojaAtual = lojaId; this.paginaAtual = 0; this.carregarProdutos(); }
   onPage(e: any) { this.paginaAtual = e.pageIndex; this.carregarProdutos(); }
 
   abrirForm(p?: Produto) {

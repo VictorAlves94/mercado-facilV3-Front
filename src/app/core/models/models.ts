@@ -167,3 +167,15 @@ export interface AuditLog {
   valorPosterior: string;
   criadoEm: string;
 }
+
+// ─── Loja ────────────────────────────────────────────────────
+export interface Loja {
+  id: number;
+  nome: string;
+  codigo: string;
+  endereco: string;
+  telefone: string;
+  cnpj: string;
+  ativa: boolean;
+  criadoEm: string;
+}

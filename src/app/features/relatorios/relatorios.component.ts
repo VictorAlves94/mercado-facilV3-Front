@@ -8,25 +8,30 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { FinanceiroService, VendaService } from '../../core/services/services';
 import { RelatorioFinanceiro, Venda } from '../../core/models/models';
+import { LojaSelectorComponent } from '../../shared/components/loja-selector/loja-selector.component';
 
 @Component({
   selector: 'app-relatorios',
   standalone: true,
   imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, MatTabsModule,
-    MatFormFieldModule, MatInputModule, CurrencyPipe, DecimalPipe, DatePipe],
+    MatFormFieldModule, MatInputModule, CurrencyPipe, DecimalPipe, DatePipe, LojaSelectorComponent],
   template: `
 <div class="mf-page">
-  <div class="mf-section-header">
+    <div class="mf-section-header">
     <div>
       <h1 class="mf-page-title">Relatórios</h1>
       <p class="mf-page-subtitle">Análise de desempenho do negócio</p>
     </div>
-    <div class="periodo-selector">
+    <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+      <app-loja-selector (lojaChange)="onLojaChange($event)"></app-loja-selector>
+      <div class="periodo-selector">
+
       <button class="period-btn" [class.active]="periodo() === 'hoje'" (click)="setPeriodo('hoje')">Hoje</button>
       <button class="period-btn" [class.active]="periodo() === 'semana'" (click)="setPeriodo('semana')">Semana</button>
       <button class="period-btn" [class.active]="periodo() === 'mes'" (click)="setPeriodo('mes')">Mês</button>
       <button class="period-btn" [class.active]="periodo() === 'custom'" (click)="setPeriodo('custom')">Período</button>
     </div>
+  </div>
   </div>
 
   @if (periodo() === 'custom') {
@@ -226,15 +231,19 @@ export class RelatoriosComponent implements OnInit {
   dataInicio  = new Date().toISOString().substring(0, 10);
   dataFim     = new Date().toISOString().substring(0, 10);
   maxVenda    = 0;
+  private lojaAtual: number | null = null;
 
   formasPagamento = signal<{ label: string; icon: string; valor: number; pct: number; cor: string }[]>([]);
 
 ngOnInit() {
-  this.vendaSvc.listarHoje().subscribe(v => {
-    this.vendasHoje.set(v);
-    this.setPeriodo('mes');
-  });
+  this.vendaSvc.listarHoje().subscribe(v => this.vendasHoje.set(v));
+  this.setPeriodo('mes');
 }
+
+   onLojaChange(lojaId: number | null) {
+    this.lojaAtual = lojaId;
+    this.setPeriodo(this.periodo()); // recarrega com novo filtro
+  }
 
   setPeriodo(p: 'hoje' | 'semana' | 'mes' | 'custom') {
     this.periodo.set(p);

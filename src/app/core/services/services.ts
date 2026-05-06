@@ -7,7 +7,7 @@ import {
   Produto, ProdutoRequest, Page, AlertasEstoque, Movimentacao, AjusteEstoqueRequest,
   Categoria, Caixa, ResumoFechamento, Venda, VendaRequest,
   Despesa, DespesaRequest, TipoDespesa, SaldoDia, RelatorioFinanceiro,
-  Fiado, LancamentoFiado, DashboardData
+  Fiado, LancamentoFiado, DashboardData, Loja
 } from '../models/models';
 
 const API = '/api/v1';
@@ -29,12 +29,14 @@ export class AuthService {
 export class ProdutoService {
   private http = inject(HttpClient);
 
-  listar(busca?: string, categoriaId?: number, pagina = 0, tamanho = 20): Observable<Page<Produto>> {
-    let params = new HttpParams().set('pagina', pagina).set('tamanho', tamanho);
-    if (busca) params = params.set('busca', busca);
-    if (categoriaId) params = params.set('categoriaId', categoriaId);
-    return this.http.get<Page<Produto>>(`${API}/produtos`, { params });
-  }
+listar(busca?: string, categoriaId?: number, pagina = 0, tamanho = 20, lojaId?: number): Observable<Page<Produto>> {
+  let params = new HttpParams().set('pagina', pagina).set('tamanho', tamanho);
+  if (busca)       params = params.set('busca', busca);
+  if (categoriaId) params = params.set('categoriaId', categoriaId);
+  if (lojaId)      params = params.set('lojaId', lojaId);
+  return this.http.get<Page<Produto>>(`${API}/produtos`, { params });
+}
+
   buscarPorId(id: number): Observable<Produto> {
     return this.http.get<Produto>(`${API}/produtos/${id}`);
   }
@@ -233,5 +235,27 @@ export class AuditoriaService {
 
   historicoEntidade(entidade: string, id: number): Observable<AuditLog[]> {
     return this.http.get<AuditLog[]>(`/api/v1/auditoria/entidade/${entidade}/${id}`);
+  }
+}
+
+// ─── Loja Service ────────────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class LojaService {
+  private http = inject(HttpClient);
+
+  listar(): Observable<Loja[]> {
+    return this.http.get<Loja[]>(`${API}/lojas`);
+  }
+
+  criar(req: { nome: string; codigo: string; endereco?: string; telefone?: string; cnpj?: string }): Observable<Loja> {
+    return this.http.post<Loja>(`${API}/lojas`, req);
+  }
+
+  atualizar(id: number, req: { nome: string; codigo: string; endereco?: string; telefone?: string; cnpj?: string }): Observable<Loja> {
+    return this.http.put<Loja>(`${API}/lojas/${id}`, req);
+  }
+
+  alterarStatus(id: number, ativa: boolean): Observable<void> {
+    return this.http.patch<void>(`${API}/lojas/${id}/status`, { ativa });
   }
 }
