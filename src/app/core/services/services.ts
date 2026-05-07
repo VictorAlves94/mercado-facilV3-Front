@@ -42,7 +42,7 @@ listar(busca?: string, categoriaId?: number, pagina = 0, tamanho = 20, lojaId?: 
   }
   buscarPorCodigoBarras(codigo: string): Observable<Produto> {
     return this.http.get<Produto>(`${API}/produtos/codigo-barras/${codigo}`);
-  }
+  }  
   criar(req: ProdutoRequest): Observable<Produto> {
     return this.http.post<Produto>(`${API}/produtos`, req);
   }
