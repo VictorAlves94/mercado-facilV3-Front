@@ -10,6 +10,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { CaixaService, VendaService, ProdutoService } from '../../core/services/services';
+import { AuthModalComponent } from '../../shared/components/auth-modal/auth-modal.component';
+import { TokenHelper } from '../../core/interceptors/auth.interceptor';
 import { Caixa, Venda, Produto, FormaPagamento, ItemVendaRequest, MovimentacaoCaixa } from '../../core/models/models';
 
 interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number; }
@@ -19,7 +21,7 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
   standalone: true,
   imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatSnackBarModule,
-    MatDialogModule, MatTabsModule, CurrencyPipe],
+    MatDialogModule, MatTabsModule, CurrencyPipe, AuthModalComponent],
   template: `
 <div class="mf-page mf-pdv">
 
@@ -191,6 +193,13 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
     <mat-icon>arrow_circle_up</mat-icon> Suprimento
   </button>
 </div>
+
+@if (mostrarAuthMov()) {
+  <app-auth-modal
+    [descricao]="'Autorizar ' + (tipoMov() === 'SANGRIA' ? 'sangria' : 'suprimento') + ' no caixa'"
+    (autorizado)="onMovAutorizado()"
+    (cancelado)="onMovCancelado()" />
+}
 
 @if (modalMovAberto()) {
   <div class="modal-mov">
@@ -437,6 +446,9 @@ export class CaixaComponent implements OnInit {
   ultimaVenda  = signal<Venda | null>(null);
   resultadosBusca = signal<Produto[]>([]);
 
+  mostrarAuthMov = signal(false);
+ acaoPendente: (() => void) | null = null;
+
   abrindo    = signal(false);
   registrando = signal(false);
 
@@ -489,11 +501,30 @@ carregarMovimentacoes(caixaId: number) {
     });
   }
 
-  abrirModalMov(tipo: 'SANGRIA' | 'SUPRIMENTO') {
+abrirModalMov(tipo: 'SANGRIA' | 'SUPRIMENTO') {
+  const perfil = TokenHelper.getUser()?.perfil;
   this.tipoMov.set(tipo);
   this.valorMov  = 0;
   this.motivoMov = '';
-  this.modalMovAberto.set(true);
+
+  if (perfil === 'OPERADOR') {
+    // guarda a ação e pede autorização
+    this.acaoPendente = () => this.modalMovAberto.set(true);
+    this.mostrarAuthMov.set(true);
+  } else {
+    this.modalMovAberto.set(true);
+  }
+}
+
+onMovAutorizado() {
+  this.mostrarAuthMov.set(false);
+  this.acaoPendente?.();
+  this.acaoPendente = null;
+}
+
+onMovCancelado() {
+  this.mostrarAuthMov.set(false);
+  this.acaoPendente = null;
 }
 
 fecharModalMov() { this.modalMovAberto.set(false); }

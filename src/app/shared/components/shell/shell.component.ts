@@ -1,13 +1,15 @@
+import { TokenHelper } from '../../../core/interceptors/auth.interceptor';
 import { Component, signal, inject, computed } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TokenHelper } from '../../../core/interceptors/auth.interceptor';
+
 
 interface NavItem {
   path: string; label: string; icon: string; badge?: number;
+  roles?: string[]; // perfis que podem ver
 }
 
 @Component({
@@ -30,7 +32,7 @@ interface NavItem {
     </div>
 
     <nav class="nav-list">
-      @for (item of navItems; track item.path) {
+      @for (item of navItems(); track item.path) {
         <a class="nav-item" [routerLink]="item.path" routerLinkActive="active"
            [matTooltip]="sidebarCollapsed() ? item.label : ''" matTooltipPosition="right">
           <span class="material-symbols-rounded nav-icon">{{ item.icon }}</span>
@@ -213,15 +215,20 @@ export class ShellComponent {
   sidebarCollapsed = signal(false);
   caixaAberto = signal(false);
 
-  navItems: NavItem[] = [
-    { path: 'dashboard',  label: 'Dashboard',   icon: 'grid_view' },
-    { path: 'caixa',      label: 'Caixa / PDV', icon: 'point_of_sale' },
-    { path: 'produtos',   label: 'Produtos',    icon: 'inventory_2' },
-    { path: 'financeiro', label: 'Financeiro',  icon: 'account_balance_wallet' },
-    { path: 'fiado',      label: 'Fiado',       icon: 'book_2' },
-    { path: 'relatorios', label: 'Relatórios',  icon: 'bar_chart' },
-    { path: 'auditoria',  label: 'Auditoria',   icon: 'manage_search' },
-  ];
+private navItemsAll: NavItem[] = [
+  { path: 'dashboard',  label: 'Dashboard',   icon: 'grid_view',               roles: ['ADMIN', 'GERENTE'] },
+  { path: 'caixa',      label: 'Caixa / PDV', icon: 'point_of_sale',           roles: ['ADMIN', 'GERENTE', 'OPERADOR'] },
+  { path: 'produtos',   label: 'Produtos',    icon: 'inventory_2',             roles: ['ADMIN', 'GERENTE'] },
+  { path: 'financeiro', label: 'Financeiro',  icon: 'account_balance_wallet',  roles: ['ADMIN', 'GERENTE'] },
+  { path: 'fiado',      label: 'Fiado',       icon: 'book_2',                  roles: ['ADMIN', 'GERENTE', 'OPERADOR'] },
+  { path: 'relatorios', label: 'Relatórios',  icon: 'bar_chart',               roles: ['ADMIN', 'GERENTE'] },
+  { path: 'auditoria',  label: 'Auditoria',   icon: 'manage_search',           roles: ['ADMIN'] },
+];
+
+navItems = computed(() => {
+  const perfil = TokenHelper.getUser()?.perfil ?? '';
+  return this.navItemsAll.filter(i => !i.roles || i.roles.includes(perfil));
+});
 
   titleMap: Record<string, string> = {
     dashboard: 'Dashboard', caixa: 'Caixa / PDV', produtos: 'Produtos',

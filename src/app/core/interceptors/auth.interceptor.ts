@@ -54,4 +54,16 @@ export const TokenHelper = {
     const u = TokenHelper.getUser();
     return u && roles.includes(u.perfil);
   }
+
+};
+
+// ─── Role Guard ──────────────────────────────────────────────
+export const roleGuard = (roles: string[]): CanActivateFn => () => {
+  const router = inject(Router);
+  const user = TokenHelper.getUser();
+  if (!user || !roles.includes(user.perfil)) {
+    router.navigate(['/']);
+    return false;
+  }
+  return true;
 };

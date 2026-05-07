@@ -194,6 +194,9 @@ export class FiadoService {
   quitar(id: number): Observable<Fiado> {
     return this.http.post<Fiado>(`${API}/fiado/${id}/quitar`, {});
   }
+  atualizarLimite(id: number, limiteCredito: number): Observable<Fiado> {
+  return this.http.patch<Fiado>(`${API}/fiado/${id}/limite`, { limiteCredito });
+}
 }
 
 // ─── Dashboard Service ───────────────────────────────────────

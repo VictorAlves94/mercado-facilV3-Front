@@ -10,13 +10,15 @@ import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { FiadoService } from '../../core/services/services';
 import { Fiado, LancamentoFiado } from '../../core/models/models';
+import { TokenHelper } from '../../core/interceptors/auth.interceptor';
+import { AuthModalComponent } from '../../shared/components/auth-modal/auth-modal.component';
 
 @Component({
   selector: 'app-fiado',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSnackBarModule, MatTableModule, MatTabsModule,
-    CurrencyPipe, DatePipe],
+    CurrencyPipe, DatePipe, AuthModalComponent],
   template: `
 <div class="mf-page">
   <div class="mf-section-header">
@@ -24,10 +26,12 @@ import { Fiado, LancamentoFiado } from '../../core/models/models';
       <h1 class="mf-page-title">Fiado</h1>
       <p class="mf-page-subtitle">Caderninho digital de crédito dos clientes</p>
     </div>
+    @if (!isOperador) {
     <button mat-flat-button color="primary" (click)="showNovoFiado.set(!showNovoFiado())">
       <mat-icon>{{ showNovoFiado() ? 'close' : 'person_add' }}</mat-icon>
       {{ showNovoFiado() ? 'Cancelar' : 'Novo Cliente' }}
     </button>
+  }
   </div>
 
   <!-- Novo fiado form -->
@@ -118,7 +122,32 @@ import { Fiado, LancamentoFiado } from '../../core/models/models';
         <div class="ds-label">Saldo Devedor</div>
         <div class="ds-valor">{{ fiadoSelecionado()!.saldoDevedor | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</div>
         @if (fiadoSelecionado()!.limiteCredito) {
-          <div class="ds-limite">Limite: {{ fiadoSelecionado()!.limiteCredito | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</div>
+          @if (fiadoSelecionado()!.limiteCredito) {
+  <div class="ds-limite">Limite: {{ fiadoSelecionado()!.limiteCredito | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</div>
+}
+<button mat-stroked-button style="margin-top:.5rem;font-size:.75rem" (click)="abrirAlterarLimite()">
+  <mat-icon style="font-size:14px">edit</mat-icon> Alterar Limite
+</button>
+
+@if (mostrarAlterarLimite()) {
+  <div class="alterar-limite-form" style="margin-top:.75rem">
+    <div class="input-money" style="justify-content:center">
+      <span>R$</span>
+      <input type="number" step="0.01" [(ngModel)]="novoLimite" placeholder="0,00" min="0">
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:.5rem;justify-content:center">
+      <button mat-stroked-button (click)="mostrarAlterarLimite.set(false)">Cancelar</button>
+      <button mat-flat-button color="primary" (click)="confirmarAlterarLimite()">Confirmar</button>
+    </div>
+  </div>
+}
+
+@if (mostrarAuthLimite()) {
+  <app-auth-modal
+    descricao="Autorizar alteração de limite de crédito"
+    (autorizado)="onLimiteAutorizado()"
+    (cancelado)="onLimiteCancelado()" />
+}
         }
       </div>
 
@@ -131,6 +160,7 @@ import { Fiado, LancamentoFiado } from '../../core/models/models';
                 [disabled]="fiadoSelecionado()!.saldoDevedor === 0">
           <mat-icon>payments</mat-icon> Registrar Pagamento
         </button>
+        @if (!isOperador) {
         @if (fiadoSelecionado()!.status === 'ATIVO') {
           <button mat-stroked-button color="warn" (click)="bloquear()">Bloquear</button>
         } @else if (fiadoSelecionado()!.status === 'BLOQUEADO') {
@@ -139,6 +169,7 @@ import { Fiado, LancamentoFiado } from '../../core/models/models';
         <button mat-stroked-button (click)="quitar()" [disabled]="fiadoSelecionado()!.saldoDevedor === 0">
           Quitar Tudo
         </button>
+          }
       </div>
 
       <!-- Form lançamento -->
@@ -283,6 +314,14 @@ export class FiadoComponent implements OnInit {
   descLancamento = '';
   buscaNome = '';
 
+  mostrarAuthLimite = signal(false);
+acaoPendenteLimite: (() => void) | null = null;
+
+mostrarAlterarLimite = signal(false);
+novoLimite = 0;
+
+get isOperador() { return TokenHelper.getUser()?.perfil === 'OPERADOR'; }
+
   fiadoForm = this.fb.group({
     nomeCliente: ['', [Validators.required, Validators.minLength(2)]],
     telefoneCliente: [''],
@@ -343,4 +382,43 @@ export class FiadoComponent implements OnInit {
     if (!confirm(`Quitar todo o saldo de ${f.nomeCliente}?`)) return;
     this.svc.quitar(f.id).subscribe(a => { this.fiadoSelecionado.set(a); this.carregar(); this.snack.open('Fiado quitado!', '', { duration: 3000 }); });
   }
+  abrirAlterarLimite() {
+  this.novoLimite = this.fiadoSelecionado()?.limiteCredito ?? 0;
+  if (this.isOperador) {
+    this.acaoPendenteLimite = () => this.mostrarAlterarLimite.set(true);
+    this.mostrarAuthLimite.set(true);
+  } else {
+    this.mostrarAlterarLimite.set(true);
+  }
+}
+
+onLimiteAutorizado() {
+  this.mostrarAuthLimite.set(false);
+  this.acaoPendenteLimite?.();
+  this.acaoPendenteLimite = null;
+}
+
+onLimiteCancelado() {
+  this.mostrarAuthLimite.set(false);
+  this.acaoPendenteLimite = null;
+}
+
+confirmarAlterarLimite() {
+  const f = this.fiadoSelecionado();
+  if (!f) return;
+  this.saving.set(true);
+  this.svc.atualizarLimite(f.id, this.novoLimite).subscribe({
+    next: atualizado => {
+      this.fiadoSelecionado.set(atualizado);
+      this.mostrarAlterarLimite.set(false);
+      this.carregar();
+      this.saving.set(false);
+      this.snack.open('Limite atualizado!', '', { duration: 3000 });
+    },
+    error: err => {
+      this.snack.open(err.error?.message || 'Erro ao atualizar limite', '', { duration: 4000 });
+      this.saving.set(false);
+    }
+  });
+}
 }
