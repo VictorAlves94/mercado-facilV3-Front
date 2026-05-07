@@ -179,3 +179,12 @@ export interface Loja {
   ativa: boolean;
   criadoEm: string;
 }
+// ─── sangria /suprimento ────────────────────────────────────────────────────
+export interface MovimentacaoCaixa {
+  id: number;
+  tipo: 'SANGRIA' | 'SUPRIMENTO';
+  valor: number;
+  motivo: string;
+  operadorNome: string;
+  criadoEm: string;
+}

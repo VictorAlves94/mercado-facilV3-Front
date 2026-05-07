@@ -7,7 +7,7 @@ import {
   Produto, ProdutoRequest, Page, AlertasEstoque, Movimentacao, AjusteEstoqueRequest,
   Categoria, Caixa, ResumoFechamento, Venda, VendaRequest,
   Despesa, DespesaRequest, TipoDespesa, SaldoDia, RelatorioFinanceiro,
-  Fiado, LancamentoFiado, DashboardData, Loja
+  Fiado, LancamentoFiado, DashboardData, Loja, MovimentacaoCaixa 
 } from '../models/models';
 
 const API = '/api/v1';
@@ -97,6 +97,13 @@ export class CaixaService {
   fechar(valorFechamento: number, observacao?: string): Observable<ResumoFechamento> {
     return this.http.post<ResumoFechamento>(`${API}/caixa/fechar`, { valorFechamento, observacao });
   }
+  registrarMovimentacao(req: { tipo: 'SANGRIA' | 'SUPRIMENTO'; valor: number; motivo: string }) {
+  return this.http.post<any>(`${API}/caixa/movimentacao`, req);
+}
+
+listarMovimentacoes(caixaId: number) {
+  return this.http.get<MovimentacaoCaixa[]>(`${API}/caixa/${caixaId}/movimentacoes`);
+}
 }
 
 // ─── Venda Service ───────────────────────────────────────────

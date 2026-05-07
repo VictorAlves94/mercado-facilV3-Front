@@ -10,7 +10,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { CaixaService, VendaService, ProdutoService } from '../../core/services/services';
-import { Caixa, Venda, Produto, FormaPagamento, ItemVendaRequest } from '../../core/models/models';
+import { Caixa, Venda, Produto, FormaPagamento, ItemVendaRequest, MovimentacaoCaixa } from '../../core/models/models';
 
 interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number; }
 
@@ -182,6 +182,50 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
             }
           </div>
         }
+          <!-- Sangria / Suprimento -->
+<div class="mov-btns">
+  <button mat-stroked-button class="mov-btn sangria" (click)="abrirModalMov('SANGRIA')">
+    <mat-icon>arrow_circle_down</mat-icon> Sangria
+  </button>
+  <button mat-stroked-button class="mov-btn suprimento" (click)="abrirModalMov('SUPRIMENTO')">
+    <mat-icon>arrow_circle_up</mat-icon> Suprimento
+  </button>
+</div>
+
+@if (modalMovAberto()) {
+  <div class="modal-mov">
+    <div class="modal-mov-header">
+      <span>{{ tipoMov() === 'SANGRIA' ? '💸 Sangria' : '💰 Suprimento' }}</span>
+      <button mat-icon-button (click)="fecharModalMov()"><mat-icon>close</mat-icon></button>
+    </div>
+    <div class="input-money">
+      <span>R$</span>
+      <input type="number" step="0.01" [(ngModel)]="valorMov" placeholder="0,00" min="0.01">
+    </div>
+    <input class="motivo-input" [(ngModel)]="motivoMov"
+           placeholder="Motivo (obrigatório)" maxlength="255">
+    <button mat-flat-button [color]="tipoMov() === 'SANGRIA' ? 'warn' : 'primary'"
+            class="mf-pdv-btn" (click)="confirmarMov()" [disabled]="salvandoMov()">
+      <mat-icon>check</mat-icon>
+      {{ salvandoMov() ? 'Salvando...' : 'Confirmar ' + (tipoMov() === 'SANGRIA' ? 'Sangria' : 'Suprimento') }}
+    </button>
+  </div>
+}
+
+@if (movimentacoes().length > 0) {
+  <div class="mov-lista">
+    <p class="pagamento-label">Movimentações</p>
+    @for (m of movimentacoes(); track m.id) {
+      <div class="mov-item" [class.sangria]="m.tipo === 'SANGRIA'" [class.suprimento]="m.tipo === 'SUPRIMENTO'">
+        <div>
+          <strong>{{ m.tipo === 'SANGRIA' ? '↓ Sangria' : '↑ Suprimento' }}</strong>
+          <small>{{ m.motivo }}</small>
+        </div>
+        <span>{{ m.valor | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+      </div>
+    }
+  </div>
+}
 
         <div class="caixa-divider"></div>
 
@@ -330,7 +374,42 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
 
     .caixa-divider { border-top: 1px solid var(--mf-border); }
     .caixa-info-card { background: var(--mf-gray-50); border-radius: var(--mf-radius-sm); padding: .75rem 1rem; }
-    .ci-row { display: flex; justify-content: space-between; font-size: .8rem; color: var(--mf-gray-500); padding: .15rem 0; strong { color: var(--mf-gray-700); font-family: var(--mf-mono); } }
+    .ci-row { display: flex; justify-content: space-between; font-size: .8rem; color: var(--mf-gray-500); padding: .15rem 0; strong { color: var(--mf-gray-700); font-family: var(--mf-mono); } 
+    }
+.mov-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.mov-btn {
+  display: flex; align-items: center; gap: .4rem; justify-content: center;
+  font-size: .8rem !important;
+  &.sangria { color: var(--mf-red); border-color: var(--mf-red); }
+  &.suprimento { color: var(--mf-green); border-color: var(--mf-green); }
+}
+.modal-mov {
+  background: white; border: 1px solid var(--mf-border);
+  border-radius: var(--mf-radius); padding: 1rem;
+  display: flex; flex-direction: column; gap: .75rem;
+}
+.modal-mov-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 600; font-size: .95rem;
+}
+.motivo-input {
+  border: 2px solid var(--mf-border); border-radius: var(--mf-radius-sm);
+  padding: .6rem .75rem; font-family: var(--mf-font); font-size: .9rem;
+  outline: none; width: 100%; box-sizing: border-box;
+  &:focus { border-color: var(--mf-blue); }
+}
+.mov-lista { display: flex; flex-direction: column; gap: .35rem; }
+.mov-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .5rem .75rem; border-radius: var(--mf-radius-sm); font-size: .8rem;
+  div { display: flex; flex-direction: column; gap: 2px; }
+  strong { font-size: .85rem; }
+  small { color: var(--mf-gray-400); }
+  span { font-family: var(--mf-mono); font-weight: 600; }
+  &.sangria { background: var(--mf-red-light); color: var(--mf-red); }
+  &.suprimento { background: var(--mf-green-light); color: var(--mf-green); }
+}
+
   `]
 })
 export class CaixaComponent implements OnInit {
@@ -361,6 +440,13 @@ export class CaixaComponent implements OnInit {
   abrindo    = signal(false);
   registrando = signal(false);
 
+  movimentacoes  = signal<MovimentacaoCaixa[]>([]);
+  modalMovAberto = signal(false);
+  tipoMov        = signal<'SANGRIA' | 'SUPRIMENTO'>('SANGRIA');
+  salvandoMov    = signal(false);
+  valorMov       = 0;
+  motivoMov      = '';
+
   valorAbertura = 0;
   valorRecebido = signal(0);
   buscaInput   = '';
@@ -378,12 +464,22 @@ export class CaixaComponent implements OnInit {
 
   ngOnInit() { this.verificarCaixa(); }
 
-  verificarCaixa() {
-    this.caixaSvc.getStatus().subscribe(s => {
-      this.caixaAberto.set(s.aberto);
-      this.caixaInfo.set(s.caixa ?? null);
-    });
-  }
+verificarCaixa() {
+  this.caixaSvc.getStatus().subscribe(s => {
+    this.caixaAberto.set(s.aberto);
+    this.caixaInfo.set(s.caixa ?? null);
+    if (s.aberto && s.caixa?.id) {
+      this.carregarMovimentacoes(s.caixa.id);
+    }
+  });
+}
+
+carregarMovimentacoes(caixaId: number) {
+  this.caixaSvc.listarMovimentacoes(caixaId).subscribe({
+    next: movs => this.movimentacoes.set(movs),
+    error: () => {}
+  });
+}
 
   abrirCaixa() {
     this.abrindo.set(true);
@@ -392,6 +488,46 @@ export class CaixaComponent implements OnInit {
       error: err => { this.snack.open(err.error?.message || 'Erro ao abrir caixa', '', { duration: 4000 }); this.abrindo.set(false); }
     });
   }
+
+  abrirModalMov(tipo: 'SANGRIA' | 'SUPRIMENTO') {
+  this.tipoMov.set(tipo);
+  this.valorMov  = 0;
+  this.motivoMov = '';
+  this.modalMovAberto.set(true);
+}
+
+fecharModalMov() { this.modalMovAberto.set(false); }
+
+confirmarMov() {
+  if (!this.valorMov || this.valorMov <= 0) {
+    this.snack.open('Informe um valor maior que zero', '', { duration: 3000 }); return;
+  }
+  if (!this.motivoMov.trim()) {
+    this.snack.open('Informe o motivo', '', { duration: 3000 }); return;
+  }
+  this.salvandoMov.set(true);
+  this.caixaSvc.registrarMovimentacao({
+    tipo: this.tipoMov(),
+    valor: this.valorMov,
+    motivo: this.motivoMov.trim()
+  }).subscribe({
+    next: () => {
+      this.snack.open(
+        `${this.tipoMov() === 'SANGRIA' ? 'Sangria' : 'Suprimento'} registrado!`,
+        '', { duration: 3000 }
+      );
+      this.fecharModalMov();
+      this.salvandoMov.set(false);
+      const id = this.caixaInfo()?.id;
+      if (id) this.carregarMovimentacoes(id);
+      this.verificarCaixa();
+    },
+    error: err => {
+      this.snack.open(err.error?.message || 'Erro ao registrar', '', { duration: 4000 });
+      this.salvandoMov.set(false);
+    }
+  });
+}
 
   onBuscaInput(e: Event) {
     clearTimeout(this.buscaTimer);
@@ -485,7 +621,8 @@ console.log('PREÇO VENDA:', p.precoVenda, typeof p.precoVenda);
     if (isNaN(vlr)) return;
     this.caixaSvc.fechar(vlr).subscribe({
       next: r => {
-        this.caixaAberto.set(false); this.caixaInfo.set(null);
+        this.caixaAberto.set(false); this.caixaInfo.set(null); this.movimentacoes.set([]);
+
         const dif = r.diferenca >= 0 ? `+R$ ${r.diferenca.toFixed(2)}` : `-R$ ${Math.abs(r.diferenca).toFixed(2)}`;
         this.snack.open(`Caixa fechado. ${r.quantidadeVendas} vendas. Diferença: ${dif}`, '', { duration: 6000 });
       },
