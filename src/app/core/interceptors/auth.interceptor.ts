@@ -62,7 +62,7 @@ export const roleGuard = (roles: string[]): CanActivateFn => () => {
   const router = inject(Router);
   const user = TokenHelper.getUser();
   if (!user || !roles.includes(user.perfil)) {
-    router.navigate(['/']);
+    router.navigate(['/caixa']);
     return false;
   }
   return true;

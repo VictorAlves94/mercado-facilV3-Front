@@ -42,6 +42,11 @@ export const routes: Routes = [
         canActivate: [roleGuard(['ADMIN'])],
         loadComponent: () => import('./features/auditoria/auditoria.component').then(m => m.AuditoriaComponent)
       },
+      {
+  path: 'usuarios',
+  canActivate: [roleGuard(['ADMIN'])],
+  loadComponent: () => import('./features/usuarios/usuarios.component').then(m => m.UsuariosComponent)
+},
     ]
   },
   { path: '**', redirectTo: '' }

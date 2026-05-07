@@ -268,4 +268,27 @@ export class LojaService {
   alterarStatus(id: number, ativa: boolean): Observable<void> {
     return this.http.patch<void>(`${API}/lojas/${id}/status`, { ativa });
   }
+
+} 
+
+  // ─── Usuario Service ─────────────────────────────────────────
+@Injectable({ providedIn: 'root' })
+export class UsuarioService {
+  private http = inject(HttpClient);
+
+  listar(): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/usuarios`);
+  }
+
+  criar(req: { nome: string; email: string; senha: string; perfil: string; lojaId?: number }): Observable<any> {
+    return this.http.post<any>(`${API}/usuarios`, req);
+  }
+
+  atualizar(id: number, req: { nome: string; email: string; senha?: string; perfil: string; lojaId?: number }): Observable<any> {
+    return this.http.put<any>(`${API}/usuarios/${id}`, req);
+  }
+
+  alterarStatus(id: number, ativo: boolean): Observable<any> {
+    return this.http.patch<any>(`${API}/usuarios/${id}/status`, { ativo });
+  }
 }

@@ -223,6 +223,7 @@ private navItemsAll: NavItem[] = [
   { path: 'fiado',      label: 'Fiado',       icon: 'book_2',                  roles: ['ADMIN', 'GERENTE', 'OPERADOR'] },
   { path: 'relatorios', label: 'Relatórios',  icon: 'bar_chart',               roles: ['ADMIN', 'GERENTE'] },
   { path: 'auditoria',  label: 'Auditoria',   icon: 'manage_search',           roles: ['ADMIN'] },
+  { path: 'usuarios', label: 'Usuários', icon: 'manage_accounts', roles: ['ADMIN'] },
 ];
 
 navItems = computed(() => {
