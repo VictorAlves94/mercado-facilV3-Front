@@ -215,13 +215,13 @@ import { LojaSelectorComponent } from '../../shared/components/loja-selector/loj
         <button mat-icon-button (click)="fecharForm()"><mat-icon>close</mat-icon></button>
       </div>
       <form [formGroup]="produtoForm" (ngSubmit)="salvar()" class="drawer-form">
-        <mat-form-field appearance="outline"><mat-label>Nome *</mat-label>
+        <mat-form-field appearance="outline" floatLabel="always"><mat-label>Nome</mat-label>
           <input matInput formControlName="nome">
         </mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Código de Barras</mat-label>
+        <mat-form-field appearance="outline" floatLabel="always"><mat-label>Código de Barras</mat-label>
           <input matInput formControlName="codigoBarras">
         </mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Categoria</mat-label>
+        <mat-form-field appearance="outline" floatLabel="always"><mat-label>Categoria</mat-label>
           <mat-select formControlName="categoriaId">
             <mat-option [value]="null">Sem categoria</mat-option>
             @for (c of categorias(); track c.id) {
@@ -230,27 +230,27 @@ import { LojaSelectorComponent } from '../../shared/components/loja-selector/loj
           </mat-select>
         </mat-form-field>
         <div class="form-row">
-          <mat-form-field appearance="outline"><mat-label>Preço de Custo *</mat-label>
+          <mat-form-field appearance="outline" floatLabel="always"><mat-label>Preço de Custo *</mat-label>
             <input matInput type="number" step="0.01" formControlName="precoCusto">
             <span matTextPrefix>R$&nbsp;</span>
           </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Preço de Venda *</mat-label>
+          <mat-form-field appearance="outline" floatLabel="always"><mat-label>Preço de Venda *</mat-label>
             <input matInput type="number" step="0.01" formControlName="precoVenda">
             <span matTextPrefix>R$&nbsp;</span>
           </mat-form-field>
         </div>
         <div class="form-row">
-          <mat-form-field appearance="outline"><mat-label>Qtd Estoque</mat-label>
+          <mat-form-field appearance="outline" floatLabel="always"><mat-label>Qtd Estoque</mat-label>
             <input matInput type="number" formControlName="quantidadeEstoque">
           </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Estoque Mínimo</mat-label>
+          <mat-form-field appearance="outline" floatLabel="always"><mat-label>Estoque Mínimo</mat-label>
             <input matInput type="number" formControlName="estoqueMinimo">
           </mat-form-field>
         </div>
-        <mat-form-field appearance="outline"><mat-label>Data de Validade</mat-label>
+        <mat-form-field appearance="outline" floatLabel="always"><mat-label>Data de Validade</mat-label>
           <input matInput type="date" formControlName="dataValidade">
         </mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Descrição</mat-label>
+        <mat-form-field appearance="outline" floatLabel="always"><mat-label>Descrição</mat-label>
           <textarea matInput formControlName="descricao" rows="2"></textarea>
         </mat-form-field>
         <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem">
@@ -331,7 +331,7 @@ export class ProdutosComponent implements OnInit {
 
   produtoForm = this.fb.group({
     nome: ['', [Validators.required, Validators.minLength(2)]],
-    codigoBarras: [''], descricao: [''], ategoriaId: this.fb.control<number | null>(null),
+    codigoBarras: [''], descricao: [''], categoriaId: this.fb.control<number | null>(null),
     quantidadeEstoque: [0, [Validators.required, Validators.min(0)]],
     estoqueMinimo: [10], precoCusto: [0, [Validators.required, Validators.min(0.01)]],
     precoVenda:   [0, [Validators.required, Validators.min(0.01)]],
