@@ -68,7 +68,7 @@ import { TokenHelper } from '../../core/interceptors/auth.interceptor';
       <form [formGroup]="form" (ngSubmit)="login()" class="login-form">
         <mat-form-field appearance="outline" class="full">
           <mat-label>E-mail</mat-label>
-          <input matInput type="email" formControlName="email" autocomplete="email" placeholder="admin@mercadofacil.com">
+          <input matInput type="email" formControlName="email" autocomplete="email" placeholder="fulano@caixabsb.com">
           <mat-icon matPrefix>email</mat-icon>
           @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
             <mat-error>E-mail é obrigatório</mat-error>
@@ -281,8 +281,8 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
 
   form = this.fb.group({
-    email: ['admin@mercadofacil.com', [Validators.required, Validators.email]],
-    senha: ['admin123', Validators.required]
+    email: ['', [Validators.required, Validators.email]],
+    senha: ['', Validators.required]
   });
 
   loading = signal(false);
