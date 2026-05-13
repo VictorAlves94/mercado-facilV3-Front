@@ -4,8 +4,8 @@
 "scripts": {
   "ng": "ng",
   "start": "ng serve",
-  "build": "ng build",
-  "vercel-build": "ng build --configuration production"
+  "build": "node ./node_modules/@angular/cli/bin/ng build --configuration production",
+  "vercel-build": "node ./node_modules/@angular/cli/bin/ng build --configuration production"
 },
   "private": true,
   "dependencies": {
