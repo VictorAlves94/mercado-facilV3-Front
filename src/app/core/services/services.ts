@@ -10,7 +10,7 @@ import {
   Fiado, LancamentoFiado, DashboardData, Loja, MovimentacaoCaixa 
 } from '../models/models';
 
-const API = 'http://localhost:8080/api/v1';
+const API = 'https://mercado-facilv3-production.up.railway.app/api/v1';
 
 // ─── Auth Service ────────────────────────────────────────────
 @Injectable({ providedIn: 'root' })
