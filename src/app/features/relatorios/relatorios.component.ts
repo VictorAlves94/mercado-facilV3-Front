@@ -8,7 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { FinanceiroService, VendaService } from '../../core/services/services';
 import { RelatorioFinanceiro, Venda } from '../../core/models/models';
-import { LojaSelectorComponent } from '../../shared/components/loja-selector/loja-selector.component';
+import { LojaSelectorComponent } from '../loja-selector/loja-selector.component';
 
 @Component({
   selector: 'app-relatorios',
@@ -23,7 +23,7 @@ import { LojaSelectorComponent } from '../../shared/components/loja-selector/loj
       <p class="mf-page-subtitle">Análise de desempenho do negócio</p>
     </div>
     <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-      <app-loja-selector (lojaChange)="onLojaChange($event)"></app-loja-selector>
+      <app-loja-selector></app-loja-selector>
       <div class="periodo-selector">
 
       <button class="period-btn" [class.active]="periodo() === 'hoje'" (click)="setPeriodo('hoje')">Hoje</button>

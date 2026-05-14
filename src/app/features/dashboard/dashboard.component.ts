@@ -1,15 +1,27 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core'; // ← OnDestroy adicionado
 import { CommonModule, CurrencyPipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { Subject, takeUntil } from 'rxjs'; // ← NOVO
 import { DashboardService } from '../../core/services/services';
 import { DashboardData } from '../../core/models/models';
-
+import { LojaService } from '../../core/services/services';     // ← NOVO
+import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'; // ← NOVO
+import { MatDividerModule } from '@angular/material/divider';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, CurrencyPipe, DecimalPipe],
+  imports: [
+    CommonModule,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    CurrencyPipe,
+    DecimalPipe,
+    LojaSelectorComponent,
+    MatDividerModule, 
+  ],
   template: `
 <div class="mf-page">
   <div class="mf-section-header">
@@ -17,7 +29,8 @@ import { DashboardData } from '../../core/models/models';
       <h1 class="mf-page-title">Dashboard</h1>
       <p class="mf-page-subtitle">{{ today | date:"EEEE, d 'de' MMMM" : '' : 'pt-BR' }}</p>
     </div>
-    <div style="display:flex;gap:.5rem">
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <app-loja-selector></app-loja-selector>  <!-- ← NOVO -->
       <a mat-stroked-button routerLink="/caixa">
         <mat-icon>point_of_sale</mat-icon> Ir para o Caixa
       </a>
@@ -196,24 +209,42 @@ import { DashboardData } from '../../core/models/models';
     }
   `]
 })
-export class DashboardComponent implements OnInit {
-  private svc = inject(DashboardService);
+export class DashboardComponent implements OnInit, OnDestroy { // ← OnDestroy adicionado
+  private svc         = inject(DashboardService);
+  private lojaService = inject(LojaService);         // ← NOVO
+  private destroy$    = new Subject<void>();          // ← NOVO
+
   data    = signal<DashboardData | null>(null);
   loading = signal(true);
   today   = new Date();
 
   actions = [
-    { path: '/caixa',      icon: 'point_of_sale',         title: 'Nova Venda',       desc: 'Registrar venda no PDV',     bg: '#e0e7ff', color: 'var(--mf-blue)' },
-    { path: '/financeiro', icon: 'add_card',               title: 'Lançar Despesa',   desc: 'Registrar saída de caixa',   bg: '#fef3c7', color: 'var(--mf-amber)' },
-    { path: '/produtos',   icon: 'inventory_2',            title: 'Produtos',         desc: 'Estoque e cadastro',         bg: '#dcfce7', color: 'var(--mf-green)' },
-    { path: '/fiado',      icon: 'book_2',                 title: 'Fiado',            desc: 'Caderninho de clientes',     bg: '#fce7f3', color: '#be185d' },
-    { path: '/relatorios', icon: 'bar_chart',              title: 'Relatórios',       desc: 'Vendas e lucro do período',  bg: '#f3e8ff', color: '#7c3aed' },
+    { path: '/caixa',      icon: 'point_of_sale',  title: 'Nova Venda',     desc: 'Registrar venda no PDV',    bg: '#e0e7ff', color: 'var(--mf-blue)'  },
+    { path: '/financeiro', icon: 'add_card',        title: 'Lançar Despesa', desc: 'Registrar saída de caixa',  bg: '#fef3c7', color: 'var(--mf-amber)' },
+    { path: '/produtos',   icon: 'inventory_2',     title: 'Produtos',       desc: 'Estoque e cadastro',        bg: '#dcfce7', color: 'var(--mf-green)' },
+    { path: '/fiado',      icon: 'book_2',          title: 'Fiado',          desc: 'Caderninho de clientes',    bg: '#fce7f3', color: '#be185d'         },
+    { path: '/relatorios', icon: 'bar_chart',       title: 'Relatórios',     desc: 'Vendas e lucro do período', bg: '#f3e8ff', color: '#7c3aed'         },
   ];
 
-  ngOnInit() {
+ngOnInit(): void {
+  // Recarrega ao trocar de loja
+  this.lojaService.lojaSelecionadaId$
+    .pipe(takeUntil(this.destroy$))
+    .subscribe((id: number | null) => {
+      if (id !== null) this.carregarDados();
+    });
+}
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private carregarDados(): void {
+    this.loading.set(true);
     this.svc.getResumo().subscribe({
-      next: d => { this.data.set(d); this.loading.set(false); },
-      error: ()  => this.loading.set(false)
+      next:  d  => { this.data.set(d); this.loading.set(false); },
+      error: () => this.loading.set(false),
     });
   }
 }

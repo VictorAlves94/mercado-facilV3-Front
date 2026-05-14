@@ -78,24 +78,7 @@ interface NavItem {
 
   <div class="main-area">
 
-    @if (!isCaixaRoute()) {
-      <header class="topbar">
-        <div class="topbar-left">
-          <button mat-icon-button class="mobile-menu-btn" (click)="toggleSidebar()">
-            <mat-icon>menu</mat-icon>
-          </button>
 
-          <span class="topbar-title">{{ currentTitle() }}</span>
-        </div>
-
-        <div class="topbar-right">
-          <div class="status-chip" [class.open]="caixaAberto()" [class.closed]="!caixaAberto()">
-            <span class="status-dot"></span>
-            {{ caixaAberto() ? 'Caixa Aberto' : 'Caixa Fechado' }}
-          </div>
-        </div>
-      </header>
-    }
 
     <main class="content">
       <router-outlet />

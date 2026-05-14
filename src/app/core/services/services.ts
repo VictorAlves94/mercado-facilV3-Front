@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, BehaviorSubject } from 'rxjs';
 
 import {
   AuthResponse, LoginRequest, Usuario,AuditLog ,
@@ -10,7 +10,7 @@ import {
   Fiado, LancamentoFiado, DashboardData, Loja, MovimentacaoCaixa 
 } from '../models/models';
 
-const API = 'https://mercado-facilv3-production.up.railway.app/api/v1';
+const API = 'http://localhost:8080/api/v1';
 
 // ─── Auth Service ────────────────────────────────────────────
 @Injectable({ providedIn: 'root' })
@@ -253,6 +253,14 @@ export class AuditoriaService {
 export class LojaService {
   private http = inject(HttpClient);
 
+  private readonly STORAGE_KEY = 'lojaSelecionadaId';
+
+  private lojaSelecionadaId$$ = new BehaviorSubject<number | null>(
+    this.carregarLojaSelecionada()
+  );
+
+  lojaSelecionadaId$ = this.lojaSelecionadaId$$.asObservable();
+
   listar(): Observable<Loja[]> {
     return this.http.get<Loja[]>(`${API}/lojas`);
   }
@@ -269,7 +277,40 @@ export class LojaService {
     return this.http.patch<void>(`${API}/lojas/${id}/status`, { ativa });
   }
 
-} 
+  setLojaSelecionada(id: number | null): void {
+    if (id === null) {
+      localStorage.removeItem(this.STORAGE_KEY);
+    } else {
+      localStorage.setItem(this.STORAGE_KEY, String(id));
+    }
+
+    this.lojaSelecionadaId$$.next(id);
+  }
+
+  getLojaSelecionadaId(): number | null {
+    return this.lojaSelecionadaId$$.getValue();
+  }
+
+  getLojaIdHeader(): string | null {
+    const id = this.getLojaSelecionadaId();
+    return id !== null ? String(id) : null;
+  }
+
+  limparLojaSelecionada(): void {
+    localStorage.removeItem(this.STORAGE_KEY);
+    this.lojaSelecionadaId$$.next(null);
+  }
+
+  private carregarLojaSelecionada(): number | null {
+    const raw = localStorage.getItem(this.STORAGE_KEY);
+
+    if (!raw) return null;
+
+    const id = Number(raw);
+
+    return Number.isNaN(id) ? null : id;
+  }
+}
 
   // ─── Usuario Service ─────────────────────────────────────────
 @Injectable({ providedIn: 'root' })

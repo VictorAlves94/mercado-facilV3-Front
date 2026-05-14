@@ -16,7 +16,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { ProdutoService, CategoriaService } from '../../core/services/services';
 import { Produto, Categoria, AlertasEstoque } from '../../core/models/models';
-import { LojaSelectorComponent } from '../../shared/components/loja-selector/loja-selector.component';
+import { LojaSelectorComponent } from '../loja-selector/loja-selector.component';
 
 @Component({
   selector: 'app-produtos',
@@ -108,7 +108,7 @@ import { LojaSelectorComponent } from '../../shared/components/loja-selector/loj
           }
         </mat-select>
       </mat-form-field>
-            <app-loja-selector (lojaChange)="onLojaChange($event)"></app-loja-selector>
+    <app-loja-selector></app-loja-selector>
     </div>
   </div>
 
