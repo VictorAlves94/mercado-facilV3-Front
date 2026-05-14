@@ -180,6 +180,7 @@ export class LojaSelectorComponent implements OnInit, OnDestroy {
             // Atualizar o nome exibido com base no id salvo
             const lojaSalva = lista.find(l => l.id === idSalvo);
             if (lojaSalva) this.lojaNomeAtual.set(lojaSalva.nome);
+            window.location.reload();
           }
         },
         error: () => console.error('[LojaSelector] Falha ao carregar lojas.')
