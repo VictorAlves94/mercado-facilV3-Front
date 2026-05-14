@@ -1,4 +1,4 @@
 export const environment = {
-  production: false,
-  apiUrl: '/api/v1'
+  production: true,
+  apiUrl: 'https://mercado-facilv3-production.up.railway.app/api/v1'
 };
