@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule, CurrencyPipe, DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,7 +6,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { FinanceiroService, VendaService } from '../../core/services/services';
+import { Subject, takeUntil } from 'rxjs';
+import { FinanceiroService, VendaService, LojaService } from '../../core/services/services';
 import { RelatorioFinanceiro, Venda } from '../../core/models/models';
 import { LojaSelectorComponent } from '../loja-selector/loja-selector.component';
 
@@ -25,13 +26,12 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
     <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
       <app-loja-selector></app-loja-selector>
       <div class="periodo-selector">
-
-      <button class="period-btn" [class.active]="periodo() === 'hoje'" (click)="setPeriodo('hoje')">Hoje</button>
-      <button class="period-btn" [class.active]="periodo() === 'semana'" (click)="setPeriodo('semana')">Semana</button>
-      <button class="period-btn" [class.active]="periodo() === 'mes'" (click)="setPeriodo('mes')">Mês</button>
-      <button class="period-btn" [class.active]="periodo() === 'custom'" (click)="setPeriodo('custom')">Período</button>
+        <button class="period-btn" [class.active]="periodo() === 'hoje'" (click)="setPeriodo('hoje')">Hoje</button>
+        <button class="period-btn" [class.active]="periodo() === 'semana'" (click)="setPeriodo('semana')">Semana</button>
+        <button class="period-btn" [class.active]="periodo() === 'mes'" (click)="setPeriodo('mes')">Mês</button>
+        <button class="period-btn" [class.active]="periodo() === 'custom'" (click)="setPeriodo('custom')">Período</button>
+      </div>
     </div>
-  </div>
   </div>
 
   @if (periodo() === 'custom') {
@@ -77,7 +77,7 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
           <div class="fp-row">
             <div class="fp-info">
               <span>{{ fp.icon }} {{ fp.label }}</span>
-             <span class="fp-pct">{{ fp.pct | number:'1.1-1' }}%</span>
+              <span class="fp-pct">{{ fp.pct | number:'1.1-1' }}%</span>
             </div>
             <div class="fp-bar-wrap">
               <div class="fp-bar" [style.width.%]="fp.pct" [style.background]="fp.cor"></div>
@@ -175,26 +175,22 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
       }
       span { color: var(--mf-gray-400); }
     }
-
     .relatorio-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
       @media (max-width: 700px) { grid-template-columns: 1fr; }
     }
     .card-title { font-size: .9rem; font-weight: 600; color: var(--mf-gray-700); margin-bottom: 1rem; }
-
     .fp-row { margin-bottom: .75rem; }
     .fp-info { display: flex; justify-content: space-between; font-size: .8rem; color: var(--mf-gray-600); margin-bottom: .3rem; }
     .fp-pct { font-weight: 600; }
     .fp-bar-wrap { background: var(--mf-gray-100); border-radius: 99px; height: 6px; margin-bottom: .3rem; }
     .fp-bar { height: 6px; border-radius: 99px; transition: width .4s; }
     .fp-row strong { font-family: var(--mf-mono); font-size: .85rem; }
-
     .cat-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .65rem; }
     .cat-nome { font-size: .8rem; color: var(--mf-gray-600); min-width: 120px; }
     .cat-bar-wrap { flex: 1; background: var(--mf-gray-100); border-radius: 99px; height: 6px; }
     .cat-bar { height: 6px; background: var(--mf-red); border-radius: 99px; transition: width .4s; }
     .cat-row strong { font-family: var(--mf-mono); font-size: .8rem; min-width: 80px; text-align: right; }
-
     .diario-lista { display: flex; flex-direction: column; gap: .4rem; }
     .dia-row { display: flex; align-items: center; gap: 1rem; }
     .dia-data { font-size: .75rem; color: var(--mf-gray-500); min-width: 70px; text-transform: capitalize; }
@@ -202,11 +198,9 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
     .dia-venda {
       background: var(--mf-blue-light); color: var(--mf-blue);
       border-radius: 4px; height: 20px; display: flex; align-items: center;
-      padding: 0 .5rem; font-size: .7rem; font-weight: 600; min-width: 60px;
-      transition: width .4s;
+      padding: 0 .5rem; font-size: .7rem; font-weight: 600; min-width: 60px; transition: width .4s;
     }
     .dia-lucro { font-family: var(--mf-mono); font-size: .8rem; font-weight: 600; min-width: 90px; text-align: right; }
-
     .vendas-lista { display: flex; flex-direction: column; gap: .4rem; }
     .venda-row {
       display: flex; align-items: center; gap: 1rem; padding: .6rem .75rem;
@@ -220,29 +214,45 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
     .skeleton-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
   `]
 })
-export class RelatoriosComponent implements OnInit {
-  private finSvc  = inject(FinanceiroService);
-  private vendaSvc = inject(VendaService);
 
-  relatorio   = signal<RelatorioFinanceiro | null>(null);
-  vendasHoje  = signal<Venda[]>([]);
-  loading     = signal(true);
-  periodo     = signal<'hoje' | 'semana' | 'mes' | 'custom'>('mes');
-  dataInicio  = new Date().toISOString().substring(0, 10);
-  dataFim     = new Date().toISOString().substring(0, 10);
-  maxVenda    = 0;
-  private lojaAtual: number | null = null;
+
+export class RelatoriosComponent implements OnInit, OnDestroy {
+  private finSvc      = inject(FinanceiroService);
+  private vendaSvc    = inject(VendaService);
+  private lojaService = inject(LojaService);
+  private destroy$    = new Subject<void>();
+
+  relatorio  = signal<RelatorioFinanceiro | null>(null);
+  vendasHoje = signal<Venda[]>([]);
+  loading    = signal(true);
+  periodo    = signal<'hoje' | 'semana' | 'mes' | 'custom'>('mes');
+  dataInicio = new Date().toISOString().substring(0, 10);
+  dataFim    = new Date().toISOString().substring(0, 10);
+  maxVenda   = 0;
 
   formasPagamento = signal<{ label: string; icon: string; valor: number; pct: number; cor: string }[]>([]);
 
-ngOnInit() {
-  this.vendaSvc.listarHoje().subscribe(v => this.vendasHoje.set(v));
-  this.setPeriodo('mes');
-}
+  ngOnInit() {
+    this.lojaService.lojaSelecionadaId$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(id => {
+        if (id !== null) {
+          this.carregarVendasHoje();
+          this.setPeriodo(this.periodo());
+        }
+      });
+  }
 
-   onLojaChange(lojaId: number | null) {
-    this.lojaAtual = lojaId;
-    this.setPeriodo(this.periodo()); // recarrega com novo filtro
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private carregarVendasHoje(): void {
+    this.vendaSvc.listarHoje().subscribe(v => {
+      this.vendasHoje.set(v);
+      if (this.relatorio()) this.processarRelatorio(this.relatorio()!);
+    });
   }
 
   setPeriodo(p: 'hoje' | 'semana' | 'mes' | 'custom') {
@@ -254,71 +264,43 @@ ngOnInit() {
               : this.finSvc.getRelatorioPeriodo(
                   new Date(Date.now() - 7 * 86400000).toISOString().substring(0, 10),
                   new Date().toISOString().substring(0, 10));
-    obs.subscribe({ next: r => { this.processarRelatorio(r); this.loading.set(false); }, error: () => this.loading.set(false) });
+    obs.subscribe({
+      next:  r  => { this.processarRelatorio(r); this.loading.set(false); },
+      error: () => this.loading.set(false)
+    });
   }
 
   buscarCustom() {
     this.loading.set(true);
     this.finSvc.getRelatorioPeriodo(this.dataInicio, this.dataFim).subscribe({
-      next: r => { this.processarRelatorio(r); this.loading.set(false); },
+      next:  r  => { this.processarRelatorio(r); this.loading.set(false); },
       error: () => this.loading.set(false)
     });
   }
 
-private processarRelatorio(r: RelatorioFinanceiro) {
-  this.relatorio.set(r);
+  private processarRelatorio(r: RelatorioFinanceiro) {
+    this.relatorio.set(r);
 
-  const mapa: Record<string, number> = {
-    DINHEIRO: 0,
-    PIX: 0,
-    CARTAO_DEBITO: 0,
-    CARTAO_CREDITO: 0
-  };
+    const mapa: Record<string, number> = {
+      DINHEIRO: 0, PIX: 0, CARTAO_DEBITO: 0, CARTAO_CREDITO: 0
+    };
 
-  this.vendasHoje().forEach(v => {
-    const tipo = (v.formaPagamento || '').toUpperCase();
+    this.vendasHoje().forEach(v => {
+      const tipo = (v.formaPagamento || '').toUpperCase();
+      if (tipo in mapa) mapa[tipo] += Number(v.valorTotal) || 0;
+    });
 
-    if (tipo in mapa) {
-      mapa[tipo] += Number(v.valorTotal) || 0;
+    const totalPagamentos = Object.values(mapa).reduce((a, b) => a + b, 0) || 1;
+
+    this.formasPagamento.set([
+      { label: 'Dinheiro', icon: '💵', valor: mapa['DINHEIRO'],       pct: (mapa['DINHEIRO']       / totalPagamentos) * 100, cor: '#4ade80' },
+      { label: 'Pix',      icon: '📱', valor: mapa['PIX'],            pct: (mapa['PIX']            / totalPagamentos) * 100, cor: '#60a5fa' },
+      { label: 'Débito',   icon: '💳', valor: mapa['CARTAO_DEBITO'],  pct: (mapa['CARTAO_DEBITO']  / totalPagamentos) * 100, cor: '#f59e0b' },
+      { label: 'Crédito',  icon: '💳', valor: mapa['CARTAO_CREDITO'], pct: (mapa['CARTAO_CREDITO'] / totalPagamentos) * 100, cor: '#a78bfa' },
+    ]);
+
+    if (r.resumoDiario.length > 0) {
+      this.maxVenda = Math.max(...r.resumoDiario.map(d => d.totalVendas));
     }
-  });
-
-  const totalPagamentos =
-    Object.values(mapa).reduce((a, b) => a + b, 0) || 1;
-
-  this.formasPagamento.set([
-    {
-      label: 'Dinheiro',
-      icon: '💵',
-      valor: mapa['DINHEIRO'],
-      pct: (mapa['DINHEIRO'] / totalPagamentos) * 100,
-      cor: '#4ade80'
-    },
-    {
-      label: 'Pix',
-      icon: '📱',
-      valor: mapa['PIX'],
-      pct: (mapa['PIX'] / totalPagamentos) * 100,
-      cor: '#60a5fa'
-    },
-    {
-      label: 'Débito',
-      icon: '💳',
-      valor: mapa['CARTAO_DEBITO'],
-      pct: (mapa['CARTAO_DEBITO'] / totalPagamentos) * 100,
-      cor: '#f59e0b'
-    },
-    {
-      label: 'Crédito',
-      icon: '💳',
-      valor: mapa['CARTAO_CREDITO'],
-      pct: (mapa['CARTAO_CREDITO'] / totalPagamentos) * 100,
-      cor: '#a78bfa'
-    }
-  ]);
-
-  if (r.resumoDiario.length > 0) {
-    this.maxVenda = Math.max(...r.resumoDiario.map(d => d.totalVendas));
   }
-}
 }

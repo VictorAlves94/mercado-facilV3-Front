@@ -228,11 +228,12 @@ export class DashboardComponent implements OnInit, OnDestroy { // ← OnDestroy 
 
 ngOnInit(): void {
   // Recarrega ao trocar de loja
-  this.lojaService.lojaSelecionadaId$
-    .pipe(takeUntil(this.destroy$))
-    .subscribe((id: number | null) => {
-      if (id !== null) this.carregarDados();
-    });
+this.lojaService.lojaSelecionadaId$
+  .pipe(takeUntil(this.destroy$))
+  .subscribe((id: number | null) => {
+    if (id !== null) this.carregarDados();
+    // o getResumo() já lê o lojaId do LojaService internamente
+  });
 }
 
   ngOnDestroy(): void {

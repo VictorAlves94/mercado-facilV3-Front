@@ -202,9 +202,13 @@ export class FiadoService {
 // ─── Dashboard Service ───────────────────────────────────────
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
-  private http = inject(HttpClient);
+  private http        = inject(HttpClient);
+  private lojaService = inject(LojaService);
+
   getResumo(): Observable<DashboardData> {
-    return this.http.get<DashboardData>(`${API}/dashboard/resumo`);
+    const lojaId = this.lojaService.getLojaSelecionadaId();
+    const params  = lojaId ? { params: { lojaId } } : {};
+    return this.http.get<DashboardData>(`${API}/dashboard/resumo`, params);
   }
 }
 

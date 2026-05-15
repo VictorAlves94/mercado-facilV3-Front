@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CaixaService, VendaService, ProdutoService } from '../../core/services/services';
 import { AuthModalComponent } from '../../shared/components/auth-modal/auth-modal.component';
 import { TokenHelper } from '../../core/interceptors/auth.interceptor';
@@ -26,7 +27,8 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
   imports: [
     CommonModule, FormsModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatSnackBarModule,
-    MatDialogModule, MatTabsModule, CurrencyPipe, AuthModalComponent
+    MatDialogModule, MatTabsModule, CurrencyPipe, AuthModalComponent,
+    MatTooltipModule
   ],
   template: `
 <div class="pdv-root">
@@ -51,14 +53,30 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         <span class="material-symbols-rounded" style="font-size:15px">person</span>
         {{ operador }}
       </span>
+      <!-- Badge do perfil do usuário logado -->
+      <span class="meta-perfil" [class]="'perfil-' + perfilUsuario().toLowerCase()">
+        {{ perfilUsuario() }}
+      </span>
       <span class="meta-hora">{{ horaAtual }}</span>
       <span class="meta-data">{{ dataAtual }}</span>
     </div>
 
     @if (caixaAberto()) {
-      <button class="btn-fechar-caixa" (click)="fecharCaixa()">
-        <span class="material-symbols-rounded">lock</span> Fechar Caixa [F9]
-      </button>
+      <!-- GERENTE / ADMIN: botão ativo -->
+      @if (podeFecharCaixa()) {
+        <button class="btn-fechar-caixa" (click)="abrirModalFecharCaixa()">
+          <span class="material-symbols-rounded">lock</span> Fechar Caixa [F9]
+        </button>
+      } @else {
+        <!-- OPERADOR: botão desabilitado com tooltip -->
+        <div class="btn-fechar-caixa desabilitado"
+             matTooltip="Apenas Gerentes e Administradores podem fechar o caixa"
+             matTooltipPosition="below">
+          <span class="material-symbols-rounded">lock</span>
+          <span>Fechar Caixa</span>
+          <span class="sem-perm-badge">Sem permissão</span>
+        </div>
+      }
     }
   </header>
 
@@ -97,17 +115,10 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
     <!-- ── COLUNA ESQUERDA: Bipar + Carrinho ── -->
     <div class="pdv-left">
 
-      <!-- LOGO / IDENTIDADE DA LOJA CLIENTE -->
       <div class="loja-pdv-card">
         <div class="loja-logo-box">
-          <img
-            [src]="lojaConfig.logo"
-            [alt]="lojaConfig.nome"
-            class="loja-logo"
-            (error)="usarLogoPadrao($event)"
-          />
+          <img [src]="lojaConfig.logo" [alt]="lojaConfig.nome" class="loja-logo" (error)="usarLogoPadrao($event)" />
         </div>
-
         <div class="loja-dados">
           <span class="loja-label">PDV PERSONALIZADO</span>
           <strong>{{ lojaConfig.nome }}</strong>
@@ -212,7 +223,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
           }
         </div>
 
-        <!-- RODAPÉ DA LISTA: subtotal -->
         <div class="lista-footer">
           <span class="lf-itens">{{ totalItens() }} {{ totalItens() === 1 ? 'item' : 'itens' }}</span>
           @if (carrinho().length > 0) {
@@ -231,7 +241,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
     <!-- ── COLUNA DIREITA: Totais + Pagamento ── -->
     <div class="pdv-right">
 
-      <!-- TOTAL GIGANTE -->
       <div class="total-block">
         <span class="total-lbl">TOTAL DA VENDA</span>
         <span class="total-val" [class.pulsando]="ultimoAdicionadoId !== null">
@@ -242,7 +251,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         }
       </div>
 
-      <!-- FORMA DE PAGAMENTO -->
       <div class="pag-block">
         <div class="block-label">FORMA DE PAGAMENTO</div>
         <div class="pag-grid">
@@ -257,7 +265,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         </div>
       </div>
 
-      <!-- VALOR RECEBIDO -->
       @if (formaPagamento() === 'DINHEIRO') {
         <div class="recebido-block">
           <div class="block-label">TOTAL RECEBIDO</div>
@@ -269,7 +276,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
           </div>
         </div>
 
-        <!-- TROCO -->
         <div class="troco-block" [class.ok]="troco() >= 0 && valorRecebido() > 0" [class.insuf]="troco() < 0">
           <div class="block-label">TROCO</div>
           <div class="troco-val">
@@ -285,7 +291,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         </div>
       }
 
-      <!-- FINALIZAR -->
       <button class="btn-finalizar" [class.pronto]="podeFinalizarVenda()"
         [disabled]="!podeFinalizarVenda() || registrando()" (click)="finalizarVenda()">
         @if (registrando()) {
@@ -296,7 +301,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         }
       </button>
 
-      <!-- AÇÕES SECUNDÁRIAS -->
       <div class="acoes-sec">
         <button class="btn-sec" (click)="confirmarLimpar()">
           <span class="material-symbols-rounded">add_circle</span>
@@ -312,7 +316,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         </button>
       </div>
 
-      <!-- COMPROVANTE -->
       @if (ultimaVenda()) {
         <div class="comprovante">
           <div class="comp-header">
@@ -326,7 +329,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         </div>
       }
 
-      <!-- INFO CAIXA -->
       @if (caixaInfo()) {
         <div class="caixa-info">
           <div class="ci-row"><span>Total vendas</span><strong>{{ caixaInfo()!.totalVendas | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</strong></div>
@@ -334,7 +336,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         </div>
       }
 
-      <!-- MOVIMENTAÇÕES -->
       @if (mostrarAuthMov()) {
         <app-auth-modal
           [descricao]="'Autorizar ' + (tipoMov() === 'SANGRIA' ? 'sangria' : 'suprimento') + ' no caixa'"
@@ -372,9 +373,6 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       BARRA DE ATALHOS (rodapé fixo — estilo Yzidro)
-  ══════════════════════════════════════════════════════ -->
   <footer class="pdv-atalhos-bar">
     <div class="atalho"><kbd>F1</kbd><span>Dinheiro</span></div>
     <div class="atalho"><kbd>F2</kbd><span>Focar campo</span></div>
@@ -391,7 +389,56 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
   }
 
   <!-- ══════════════════════════════════════════════════════
-       MODAL CANCELAR
+       MODAL FECHAR CAIXA (substitui o prompt() nativo)
+  ══════════════════════════════════════════════════════ -->
+  @if (modalFecharAberto()) {
+    <div class="modal-overlay" (click)="modalFecharAberto.set(false); focarInput()">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <div class="modal-icon fechar">
+          <span class="material-symbols-rounded">lock</span>
+        </div>
+        <h2>Fechar Caixa</h2>
+        <p>Informe o valor que você <strong>contou fisicamente</strong> no caixa.</p>
+
+        <div class="input-money" style="width:100%">
+          <span>R$</span>
+          <input
+            type="number" step="0.01" min="0"
+            [(ngModel)]="valorContagemCaixa"
+            placeholder="0,00"
+            style="font-size:1.4rem"
+          />
+        </div>
+
+        <!-- Resumo do caixa atual -->
+        @if (caixaInfo()) {
+          <div class="resumo-caixa">
+            <div class="rc-row">
+              <span>Total de vendas no sistema</span>
+              <strong>{{ caixaInfo()!.totalVendas | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</strong>
+            </div>
+            <div class="rc-row">
+              <span>Saldo de abertura</span>
+              <strong>{{ caixaInfo()!.valorAbertura | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</strong>
+            </div>
+          </div>
+        }
+
+        <div class="modal-acoes">
+          <button class="btn-modal danger" (click)="confirmarFechamentoCaixa()">
+            <span class="material-symbols-rounded" style="font-size:15px;vertical-align:middle;margin-right:4px">lock</span>
+            Confirmar Fechamento
+          </button>
+          <button class="btn-modal" (click)="modalFecharAberto.set(false); focarInput()">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════
+       MODAL CANCELAR VENDA
   ══════════════════════════════════════════════════════ -->
   @if (showModalCancelar) {
     <div class="modal-overlay" (click)="showModalCancelar=false;focarInput()">
@@ -442,18 +489,14 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── ROOT ──────────────────────────────────────────────── */
     .pdv-root {
-      display: grid;
-      grid-template-rows: 46px 1fr 32px;
-      height: 100vh;
-      background: var(--p-gray50);
-      color: var(--p-text);
-      font-family: 'Roboto Mono', 'Consolas', monospace;
+      display: grid; grid-template-rows: 46px 1fr 32px;
+      height: 100vh; background: var(--p-gray50);
+      color: var(--p-text); font-family: 'Roboto Mono', 'Consolas', monospace;
       overflow: hidden;
     }
 
-    /* ── TOPBAR ────────────────────────────────────────────── */
+    /* ── TOPBAR ── */
     .pdv-topbar {
       display: flex; align-items: center; gap: 12px; padding: 0 16px;
       background: var(--p-navy2); border-bottom: 2px solid var(--p-blue);
@@ -478,11 +521,22 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
         .dot { background: #f87171; } }
     }
     .topbar-meta {
-      display: flex; align-items: center; gap: 14px; margin-left: auto;
+      display: flex; align-items: center; gap: 10px; margin-left: auto;
       .meta-op   { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #a8c4df; font-weight: 500; }
       .meta-hora { font-size: 15px; font-weight: 700; color: #5bc8ff; letter-spacing: 1px; }
       .meta-data { font-size: 11px; color: #7ab0d8; }
     }
+
+    /* Badge de perfil na topbar */
+    .meta-perfil {
+      font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 3px;
+      &.perfil-admin    { background: rgba(192,57,43,.25);  color: #f87171; }
+      &.perfil-gerente  { background: rgba(176,125,0,.25);  color: #fbbf24; }
+      &.perfil-operador { background: rgba(33,118,210,.25); color: #5bc8ff; }
+    }
+
+    /* Botão fechar caixa — ativo */
     .btn-fechar-caixa {
       display: flex; align-items: center; gap: 5px;
       background: rgba(192,57,43,.2); color: #f87171;
@@ -492,8 +546,22 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
       .material-symbols-rounded { font-size: 15px; }
       &:hover { background: rgba(192,57,43,.35); }
     }
+    /* Botão fechar caixa — sem permissão */
+    .btn-fechar-caixa.desabilitado {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(120,120,120,.1); color: #7a90b0;
+      border: 1px solid rgba(120,120,120,.2); border-radius: 4px;
+      padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: not-allowed;
+      font-family: inherit;
+      .material-symbols-rounded { font-size: 15px; }
+    }
+    .sem-perm-badge {
+      font-size: 9px; padding: 1px 5px;
+      background: rgba(192,57,43,.15); color: #f87171;
+      border-radius: 3px; border: 1px solid rgba(248,113,113,.2);
+    }
 
-    /* ── TELA ABERTURA ─────────────────────────────────────── */
+    /* ── TELA ABERTURA ── */
     .tela-abertura {
       grid-row: 1 / 4; display: flex; align-items: center; justify-content: center;
       background: var(--p-gray50);
@@ -515,91 +583,39 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
     .abertura-form { display: flex; flex-direction: column; gap: 10px; width: 100%;
       label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; color: var(--p-text3); text-transform: uppercase; text-align: left; }
     }
-    .btn-abrir {
-      width: 100%; height: 46px; font-size: 14px !important; font-weight: 700 !important;
-      letter-spacing: .5px; border-radius: 6px !important;
-    }
+    .btn-abrir { width: 100%; height: 46px; font-size: 14px !important; font-weight: 700 !important; letter-spacing: .5px; border-radius: 6px !important; }
 
-    /* ── WORKSPACE ─────────────────────────────────────────── */
-    .pdv-workspace {
-      display: grid; grid-template-columns: 1fr 320px;
-      gap: 0; overflow: hidden;
-    }
+    /* ── WORKSPACE ── */
+    .pdv-workspace { display: grid; grid-template-columns: 1fr 320px; gap: 0; overflow: hidden; }
 
-    /* ── COLUNA ESQUERDA ───────────────────────────────────── */
-    .pdv-left {
-      display: flex; flex-direction: column; overflow: hidden;
-      border-right: 2px solid var(--p-gray200);
-    }
+    /* ── COLUNA ESQUERDA ── */
+    .pdv-left { display: flex; flex-direction: column; overflow: hidden; border-right: 2px solid var(--p-gray200); }
 
-    /* ── LOGO / IDENTIDADE DA LOJA CLIENTE ───────────────────── */
     .loja-pdv-card {
-      display: grid;
-      grid-template-columns: 150px 1fr;
-      align-items: center;
-      gap: 16px;
-      padding: 12px 16px;
+      display: grid; grid-template-columns: 150px 1fr; align-items: center;
+      gap: 16px; padding: 12px 16px;
       background: linear-gradient(135deg, #ffffff 0%, #eef5ff 100%);
-      border-bottom: 2px solid var(--p-gray200);
-      flex-shrink: 0;
+      border-bottom: 2px solid var(--p-gray200); flex-shrink: 0;
     }
     .loja-logo-box {
-      height: 110px;
-      background: #fff;
-      border: 2px solid var(--p-gray200);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(15,37,64,.08);
+      height: 110px; background: #fff; border: 2px solid var(--p-gray200);
+      border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; box-shadow: 0 4px 12px rgba(15,37,64,.08);
     }
-    .loja-logo {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      padding: 10px;
-    }
-    .loja-dados {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-    }
-    .loja-label {
-      font-size: 10px;
-      font-weight: 900;
-      letter-spacing: 1.5px;
-      color: var(--p-blue);
-      text-transform: uppercase;
-    }
-    .loja-dados strong {
-      font-size: 24px;
-      line-height: 1.1;
-      color: var(--p-navy2);
-      font-weight: 900;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .loja-dados small {
-      font-size: 12px;
-      color: var(--p-text3);
-      font-weight: 600;
-    }
+    .loja-logo { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+    .loja-dados { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .loja-label { font-size: 10px; font-weight: 900; letter-spacing: 1.5px; color: var(--p-blue); text-transform: uppercase; }
+    .loja-dados strong { font-size: 24px; line-height: 1.1; color: var(--p-navy2); font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .loja-dados small  { font-size: 12px; color: var(--p-text3); font-weight: 600; }
 
-    /* BIPAR ZONE */
+    /* BIPAR */
     .bipar-zone {
       background: var(--p-navy); padding: 10px 16px 8px; flex-shrink: 0;
-      border-bottom: 2px solid var(--p-blue); position: relative;
-      transition: background .2s;
+      border-bottom: 2px solid var(--p-blue); position: relative; transition: background .2s;
       &.erro     { background: #3d0f0a; border-bottom-color: #e74c3c; }
       &.buscando { background: #0f2040; border-bottom-color: #5bc8ff; }
     }
-    .bipar-label {
-      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #7ab0d8;
-      text-transform: uppercase; margin-bottom: 6px;
-    }
+    .bipar-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #7ab0d8; text-transform: uppercase; margin-bottom: 6px; }
     .bipar-row {
       display: flex; align-items: center; gap: 10px;
       background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.15);
@@ -613,33 +629,20 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
       padding: 13px 0; letter-spacing: .5px;
       &::placeholder { color: rgba(255,255,255,.3); font-weight: 400; font-size: 16px; }
     }
-    .bipar-spinner {
-      width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.2);
-      border-top-color: #5bc8ff; border-radius: 50%; animation: spin .6s linear infinite;
-    }
+    .bipar-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.2); border-top-color: #5bc8ff; border-radius: 50%; animation: spin .6s linear infinite; }
     .ultimo-produto { font-size: 11px; color: #5bc8ff; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
     .bipar-info { flex: 0 0 auto; }
-    .bipar-kbd {
-      font-size: 11px; padding: 3px 8px; background: rgba(255,255,255,.1);
-      border: 1px solid rgba(255,255,255,.2); border-radius: 3px; color: #a8c4df;
-      font-family: inherit; flex-shrink: 0;
-    }
-    .bipar-erro-msg {
-      display: flex; align-items: center; gap: 6px; color: #f87171;
-      font-size: 12px; font-weight: 600; padding: 5px 0 0;
-      animation: fadeIn .15s;
-    }
+    .bipar-kbd { font-size: 11px; padding: 3px 8px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 3px; color: #a8c4df; font-family: inherit; flex-shrink: 0; }
+    .bipar-erro-msg { display: flex; align-items: center; gap: 6px; color: #f87171; font-size: 12px; font-weight: 600; padding: 5px 0 0; animation: fadeIn .15s; }
     .sugestoes-drop {
       position: absolute; left: 0; right: 0; top: 100%;
-      background: var(--p-white); border: 2px solid var(--p-navy);
-      border-top: none; z-index: 200; max-height: 240px; overflow-y: auto;
-      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      background: var(--p-white); border: 2px solid var(--p-navy); border-top: none;
+      z-index: 200; max-height: 240px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.15);
     }
     .sug-item {
       display: grid; grid-template-columns: 28px 110px 1fr 70px 100px;
-      align-items: center; gap: 10px; padding: 9px 14px;
-      cursor: pointer; border-bottom: 1px solid var(--p-gray100);
-      font-size: 13px; transition: background .1s;
+      align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer;
+      border-bottom: 1px solid var(--p-gray100); font-size: 13px; transition: background .1s;
       &:last-child { border-bottom: none; }
       &:hover, &.ativo { background: var(--p-blue-bg); }
       .sug-seq    { color: var(--p-text3); font-size: 11px; text-align: center; }
@@ -649,35 +652,20 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
       .sug-preco  { color: var(--p-blue); font-weight: 700; text-align: right; }
     }
 
-    /* LISTA ZONE */
-    .lista-zone {
-      flex: 1; display: flex; flex-direction: column; overflow: hidden;
-      background: var(--p-white);
-    }
+    /* LISTA */
+    .lista-zone { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--p-white); }
     .lista-header {
       display: grid; grid-template-columns: 44px 110px 1fr 110px 100px 110px 36px;
       padding: 0 12px; background: var(--p-navy); border-bottom: 2px solid var(--p-blue);
       font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #a8c4df;
       text-transform: uppercase; height: 32px; align-items: center; flex-shrink: 0;
     }
-    .lista-body {
-      flex: 1; overflow-y: auto;
-      &::-webkit-scrollbar { width: 5px; }
-      &::-webkit-scrollbar-track { background: var(--p-gray50); }
-      &::-webkit-scrollbar-thumb { background: var(--p-gray200); border-radius: 3px; }
-    }
-    .lista-vazia {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 10px; height: 100%; color: var(--p-text3);
-      .material-symbols-rounded { font-size: 48px; opacity: .25; }
-      p { font-weight: 600; font-size: 14px; color: var(--p-text3); }
-      small { font-size: 12px; }
-    }
+    .lista-body { flex: 1; overflow-y: auto; &::-webkit-scrollbar { width: 5px; } &::-webkit-scrollbar-track { background: var(--p-gray50); } &::-webkit-scrollbar-thumb { background: var(--p-gray200); border-radius: 3px; } }
+    .lista-vazia { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100%; color: var(--p-text3); .material-symbols-rounded { font-size: 48px; opacity: .25; } p { font-weight: 600; font-size: 14px; } small { font-size: 12px; } }
     .lista-item {
       display: grid; grid-template-columns: 44px 110px 1fr 110px 100px 110px 36px;
       align-items: center; padding: 0 12px; height: 46px;
-      border-bottom: 1px solid var(--p-gray100);
-      cursor: pointer; transition: background .1s; font-size: 13px;
+      border-bottom: 1px solid var(--p-gray100); cursor: pointer; transition: background .1s; font-size: 13px;
       &:hover { background: var(--p-gray50); }
       &.sel   { background: var(--p-blue-bg); border-left: 3px solid var(--p-blue); }
       &.novo  { animation: flashItem .9s ease-out; }
@@ -688,242 +676,52 @@ interface CarrinhoItem { produto: Produto; quantidade: number; subtotal: number;
       .sub  { color: var(--p-navy2); font-weight: 800; font-size: 14px; }
     }
     .qty-ctrl { display: flex; align-items: center; gap: 2px; }
-    .qty-btn {
-      width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
-      background: var(--p-gray100); border: 1px solid var(--p-gray200); border-radius: 3px;
-      color: var(--p-text2); font-size: 15px; cursor: pointer; transition: all .1s;
-      &:hover { background: var(--p-blue-lt); border-color: var(--p-accent); color: var(--p-navy); }
-      &:disabled { opacity: .3; cursor: not-allowed; }
-    }
+    .qty-btn { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--p-gray100); border: 1px solid var(--p-gray200); border-radius: 3px; color: var(--p-text2); font-size: 15px; cursor: pointer; transition: all .1s; &:hover { background: var(--p-blue-lt); border-color: var(--p-accent); color: var(--p-navy); } &:disabled { opacity: .3; cursor: not-allowed; } }
     .qty-val { min-width: 28px; text-align: center; font-size: 14px; font-weight: 800; color: var(--p-navy2); }
-    .btn-del {
-      width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-      background: transparent; border: none; border-radius: 3px; color: var(--p-gray400);
-      cursor: pointer; transition: all .12s;
-      .material-symbols-rounded { font-size: 17px; }
-      &:hover { background: var(--p-red-bg); color: var(--p-red); }
-    }
-    .lista-footer {
-      display: flex; align-items: center; gap: 12px; padding: 6px 12px;
-      background: var(--p-navy); border-top: 2px solid var(--p-blue); flex-shrink: 0;
-      .lf-itens { font-size: 12px; color: #a8c4df; }
-    }
-    .btn-limpar-lista {
-      display: flex; align-items: center; gap: 4px; background: rgba(192,57,43,.2);
-      border: 1px solid rgba(248,113,113,.3); border-radius: 4px; color: #f87171;
-      font-size: 11px; padding: 4px 9px; cursor: pointer; font-family: inherit; transition: all .15s;
-      .material-symbols-rounded { font-size: 14px; }
-      &:hover { background: rgba(192,57,43,.35); }
-    }
-    .lf-subtotal {
-      margin-left: auto; display: flex; align-items: center; gap: 14px;
-      span { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #7ab0d8; text-transform: uppercase; }
-      strong { font-size: 22px; font-weight: 800; color: #fff; font-family: 'Roboto Mono', monospace; }
-    }
+    .btn-del { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 3px; color: var(--p-gray400); cursor: pointer; transition: all .12s; .material-symbols-rounded { font-size: 17px; } &:hover { background: var(--p-red-bg); color: var(--p-red); } }
+    .lista-footer { display: flex; align-items: center; gap: 12px; padding: 6px 12px; background: var(--p-navy); border-top: 2px solid var(--p-blue); flex-shrink: 0; .lf-itens { font-size: 12px; color: #a8c4df; } }
+    .btn-limpar-lista { display: flex; align-items: center; gap: 4px; background: rgba(192,57,43,.2); border: 1px solid rgba(248,113,113,.3); border-radius: 4px; color: #f87171; font-size: 11px; padding: 4px 9px; cursor: pointer; font-family: inherit; transition: all .15s; .material-symbols-rounded { font-size: 14px; } &:hover { background: rgba(192,57,43,.35); } }
+    .lf-subtotal { margin-left: auto; display: flex; align-items: center; gap: 14px; span { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #7ab0d8; text-transform: uppercase; } strong { font-size: 22px; font-weight: 800; color: #fff; font-family: 'Roboto Mono', monospace; } }
 
-    /* ── COLUNA DIREITA ────────────────────────────────────── */
-    .pdv-right {
-      display: flex; flex-direction: column; gap: 0; overflow-y: auto; background: var(--p-gray50);
-      &::-webkit-scrollbar { width: 4px; }
-      &::-webkit-scrollbar-thumb { background: var(--p-gray200); border-radius: 2px; }
-    }
-    .block-label {
-      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
-      color: var(--p-text3); text-transform: uppercase; margin-bottom: 8px;
-    }
-
-    /* TOTAL BLOCK */
-    .total-block {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 18px 14px; background: var(--p-navy2); gap: 4px; flex-shrink: 0;
-      border-bottom: 3px solid var(--p-blue);
-      .total-lbl { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #7ab0d8; text-transform: uppercase; }
-      .total-val {
-        font-size: 40px; font-weight: 900; color: #5bc8ff; line-height: 1;
-        letter-spacing: -1px; font-family: 'Roboto Mono', monospace;
-        text-shadow: 0 0 24px rgba(91,200,255,.25);
-        &.pulsando { animation: pulsoTotal .4s ease-out; }
-      }
-      .total-sub { font-size: 12px; color: #7ab0d8; }
-    }
-
-    /* PAG BLOCK */
+    /* ── COLUNA DIREITA ── */
+    .pdv-right { display: flex; flex-direction: column; gap: 0; overflow-y: auto; background: var(--p-gray50); &::-webkit-scrollbar { width: 4px; } &::-webkit-scrollbar-thumb { background: var(--p-gray200); border-radius: 2px; } }
+    .block-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--p-text3); text-transform: uppercase; margin-bottom: 8px; }
+    .total-block { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 14px; background: var(--p-navy2); gap: 4px; flex-shrink: 0; border-bottom: 3px solid var(--p-blue); .total-lbl { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #7ab0d8; text-transform: uppercase; } .total-val { font-size: 40px; font-weight: 900; color: #5bc8ff; line-height: 1; letter-spacing: -1px; font-family: 'Roboto Mono', monospace; text-shadow: 0 0 24px rgba(91,200,255,.25); &.pulsando { animation: pulsoTotal .4s ease-out; } } .total-sub { font-size: 12px; color: #7ab0d8; } }
     .pag-block { padding: 12px; border-bottom: 1px solid var(--p-gray200); background: var(--p-white); }
     .pag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .fp-btn {
-      display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 6px;
-      background: var(--p-gray50); border: 2px solid var(--p-gray200); border-radius: 6px;
-      color: var(--p-text2); cursor: pointer; font-family: inherit; position: relative; transition: all .15s;
-      .fp-icon  { font-size: 18px; }
-      .fp-label { font-size: 11px; font-weight: 700; }
-      kbd { position: absolute; top: 4px; right: 4px; font-size: 8px; padding: 1px 3px;
-        background: var(--p-gray100); border: 1px solid var(--p-gray200); border-radius: 2px;
-        color: var(--p-text3); font-family: inherit; }
-      &:hover { background: var(--p-blue-bg); border-color: var(--p-accent); color: var(--p-navy); }
-      &.active { background: var(--p-navy); border-color: var(--p-navy); color: #fff; box-shadow: 0 2px 8px rgba(26,58,92,.25); }
-    }
-
-    /* RECEBIDO / TROCO */
+    .fp-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 6px; background: var(--p-gray50); border: 2px solid var(--p-gray200); border-radius: 6px; color: var(--p-text2); cursor: pointer; font-family: inherit; position: relative; transition: all .15s; .fp-icon { font-size: 18px; } .fp-label { font-size: 11px; font-weight: 700; } kbd { position: absolute; top: 4px; right: 4px; font-size: 8px; padding: 1px 3px; background: var(--p-gray100); border: 1px solid var(--p-gray200); border-radius: 2px; color: var(--p-text3); font-family: inherit; } &:hover { background: var(--p-blue-bg); border-color: var(--p-accent); color: var(--p-navy); } &.active { background: var(--p-navy); border-color: var(--p-navy); color: #fff; box-shadow: 0 2px 8px rgba(26,58,92,.25); } }
     .recebido-block { padding: 10px 12px 0; background: var(--p-white); }
-    .input-money {
-      display: flex; align-items: center; gap: 8px;
-      border: 2px solid var(--p-gray200); border-radius: 5px;
-      padding: .4rem .75rem; background: var(--p-gray50); transition: border-color .15s;
-      &:focus-within { border-color: var(--p-accent); background: var(--p-white); }
-      span { font-size: 14px; font-weight: 700; color: var(--p-text3); flex-shrink: 0; }
-      input { flex: 1; border: none; outline: none; background: transparent;
-        color: var(--p-text); font-family: 'Roboto Mono', monospace; font-size: 1rem; font-weight: 700; }
-      &.large { padding: .5rem .75rem;
-        input { font-size: 1.5rem; } }
-    }
-    .troco-block {
-      margin: 6px 12px 0; padding: 10px 14px; border-radius: 6px;
-      background: var(--p-gray100); border: 2px solid var(--p-gray200);
-      display: flex; flex-direction: column; gap: 2px; transition: all .2s;
-      .troco-val { font-size: 28px; font-weight: 900; font-family: 'Roboto Mono', monospace; color: var(--p-text3); }
-      .troco-alerta { font-size: 11px; color: var(--p-red); font-weight: 600; }
-      &.ok    { background: var(--p-green-bg); border-color: rgba(10,124,78,.25);
-        .block-label { color: rgba(10,124,78,.7); } .troco-val { color: var(--p-green); } }
-      &.insuf { background: var(--p-red-bg); border-color: rgba(192,57,43,.25);
-        .block-label { color: rgba(192,57,43,.7); } .troco-val { color: var(--p-red); } }
-    }
-
-    /* FINALIZAR */
-    .btn-finalizar {
-      margin: 10px 12px 0; padding: 16px; display: flex; align-items: center;
-      justify-content: center; gap: 8px; background: var(--p-gray200);
-      border: 2px solid var(--p-gray200); border-radius: 8px; color: var(--p-text3);
-      font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
-      cursor: not-allowed; transition: all .2s; font-family: inherit;
-      .material-symbols-rounded { font-size: 20px; font-variation-settings: 'FILL' 1; }
-      &.pronto {
-        background: var(--p-green); border-color: var(--p-green); color: #fff;
-        cursor: pointer; box-shadow: 0 4px 16px rgba(10,124,78,.3);
-        animation: glowBtn 2.5s infinite;
-        &:hover { background: #0b9461; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(10,124,78,.4); }
-        &:active { transform: translateY(0); }
-      }
-      &:disabled:not(.pronto) { opacity: .5; }
-    }
-
-    /* AÇÕES SEC */
-    .acoes-sec {
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 8px 12px 0;
-    }
-    .btn-sec {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 3px; padding: 8px 4px; background: var(--p-white); border: 1px solid var(--p-gray200);
-      border-radius: 5px; color: var(--p-text2); font-size: 10px; font-weight: 700;
-      cursor: pointer; font-family: inherit; transition: all .15s; text-align: center; line-height: 1.3;
-      .material-symbols-rounded { font-size: 18px; }
-      kbd { font-size: 8px; padding: 1px 3px; background: var(--p-gray100);
-        border: 1px solid var(--p-gray200); border-radius: 2px; color: var(--p-text3); }
-      &:hover { background: var(--p-blue-bg); border-color: var(--p-accent); color: var(--p-navy); }
-      &.sangria:hover    { background: var(--p-red-bg);   border-color: var(--p-red);   color: var(--p-red); }
-      &.suprimento:hover { background: var(--p-green-bg); border-color: var(--p-green); color: var(--p-green); }
-    }
-
-    /* COMPROVANTE */
-    .comprovante {
-      margin: 8px 12px 0; background: var(--p-green-bg); border-radius: 6px;
-      padding: 10px 12px; border: 1px solid rgba(10,124,78,.2);
-      .comp-header { display: flex; align-items: center; gap: 6px; font-weight: 700;
-        color: var(--p-green); margin-bottom: 6px; font-size: 13px;
-        .material-symbols-rounded { font-size: 18px; font-variation-settings:'FILL' 1; } }
-      .comp-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0;
-        color: var(--p-text2); strong { font-family: 'Roboto Mono', monospace; color: var(--p-text); } }
-      .troco-ok strong { color: var(--p-green); }
-    }
-
-    /* INFO CAIXA */
-    .caixa-info {
-      margin: 8px 12px 0; background: var(--p-white); border-radius: 5px;
-      padding: 8px 12px; border: 1px solid var(--p-gray200);
-      .ci-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--p-text3); padding: 2px 0;
-        strong { color: var(--p-text); font-family: 'Roboto Mono', monospace; } }
-    }
-
-    /* MOVIMENTAÇÕES */
+    .input-money { display: flex; align-items: center; gap: 8px; border: 2px solid var(--p-gray200); border-radius: 5px; padding: .4rem .75rem; background: var(--p-gray50); transition: border-color .15s; &:focus-within { border-color: var(--p-accent); background: var(--p-white); } span { font-size: 14px; font-weight: 700; color: var(--p-text3); flex-shrink: 0; } input { flex: 1; border: none; outline: none; background: transparent; color: var(--p-text); font-family: 'Roboto Mono', monospace; font-size: 1rem; font-weight: 700; } &.large { padding: .5rem .75rem; input { font-size: 1.5rem; } } }
+    .troco-block { margin: 6px 12px 0; padding: 10px 14px; border-radius: 6px; background: var(--p-gray100); border: 2px solid var(--p-gray200); display: flex; flex-direction: column; gap: 2px; transition: all .2s; .troco-val { font-size: 28px; font-weight: 900; font-family: 'Roboto Mono', monospace; color: var(--p-text3); } .troco-alerta { font-size: 11px; color: var(--p-red); font-weight: 600; } &.ok { background: var(--p-green-bg); border-color: rgba(10,124,78,.25); .block-label { color: rgba(10,124,78,.7); } .troco-val { color: var(--p-green); } } &.insuf { background: var(--p-red-bg); border-color: rgba(192,57,43,.25); .block-label { color: rgba(192,57,43,.7); } .troco-val { color: var(--p-red); } } }
+    .btn-finalizar { margin: 10px 12px 0; padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--p-gray200); border: 2px solid var(--p-gray200); border-radius: 8px; color: var(--p-text3); font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; cursor: not-allowed; transition: all .2s; font-family: inherit; .material-symbols-rounded { font-size: 20px; font-variation-settings: 'FILL' 1; } &.pronto { background: var(--p-green); border-color: var(--p-green); color: #fff; cursor: pointer; box-shadow: 0 4px 16px rgba(10,124,78,.3); animation: glowBtn 2.5s infinite; &:hover { background: #0b9461; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(10,124,78,.4); } &:active { transform: translateY(0); } } &:disabled:not(.pronto) { opacity: .5; } }
+    .acoes-sec { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 8px 12px 0; }
+    .btn-sec { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 4px; background: var(--p-white); border: 1px solid var(--p-gray200); border-radius: 5px; color: var(--p-text2); font-size: 10px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; text-align: center; line-height: 1.3; .material-symbols-rounded { font-size: 18px; } kbd { font-size: 8px; padding: 1px 3px; background: var(--p-gray100); border: 1px solid var(--p-gray200); border-radius: 2px; color: var(--p-text3); } &:hover { background: var(--p-blue-bg); border-color: var(--p-accent); color: var(--p-navy); } &.sangria:hover { background: var(--p-red-bg); border-color: var(--p-red); color: var(--p-red); } &.suprimento:hover { background: var(--p-green-bg); border-color: var(--p-green); color: var(--p-green); } }
+    .comprovante { margin: 8px 12px 0; background: var(--p-green-bg); border-radius: 6px; padding: 10px 12px; border: 1px solid rgba(10,124,78,.2); .comp-header { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--p-green); margin-bottom: 6px; font-size: 13px; .material-symbols-rounded { font-size: 18px; font-variation-settings:'FILL' 1; } } .comp-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; color: var(--p-text2); strong { font-family: 'Roboto Mono', monospace; color: var(--p-text); } } .troco-ok strong { color: var(--p-green); } }
+    .caixa-info { margin: 8px 12px 0; background: var(--p-white); border-radius: 5px; padding: 8px 12px; border: 1px solid var(--p-gray200); .ci-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--p-text3); padding: 2px 0; strong { color: var(--p-text); font-family: 'Roboto Mono', monospace; } } }
     .mov-lista { margin: 6px 12px 0; display: flex; flex-direction: column; gap: 4px; }
-    .mov-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 6px 9px; border-radius: 4px; font-size: .8rem;
-      div { display: flex; flex-direction: column; gap: 1px; }
-      strong { font-size: .82rem; }
-      small  { color: var(--p-text3); font-size: .72rem; }
-      span   { font-family: 'Roboto Mono', monospace; font-weight: 700; }
-      &.sangria    { background: var(--p-red-bg);   color: var(--p-red); }
-      &.suprimento { background: var(--p-green-bg); color: var(--p-green); }
-    }
-    .modal-mov {
-      margin: 6px 12px 0; background: var(--p-white); border: 1px solid var(--p-gray200);
-      border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
-    }
-    .modal-mov-header {
-      display: flex; justify-content: space-between; align-items: center;
-      font-weight: 700; font-size: .9rem; color: var(--p-text);
-    }
-    .motivo-input {
-      border: 2px solid var(--p-gray200); border-radius: 5px; padding: .55rem .75rem;
-      font-family: inherit; font-size: .875rem; outline: none; width: 100%;
-      background: var(--p-gray50); color: var(--p-text);
-      &:focus { border-color: var(--p-accent); }
-    }
+    .mov-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 9px; border-radius: 4px; font-size: .8rem; div { display: flex; flex-direction: column; gap: 1px; } strong { font-size: .82rem; } small { color: var(--p-text3); font-size: .72rem; } span { font-family: 'Roboto Mono', monospace; font-weight: 700; } &.sangria { background: var(--p-red-bg); color: var(--p-red); } &.suprimento { background: var(--p-green-bg); color: var(--p-green); } }
+    .modal-mov { margin: 6px 12px 0; background: var(--p-white); border: 1px solid var(--p-gray200); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .modal-mov-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: .9rem; color: var(--p-text); }
+    .motivo-input { border: 2px solid var(--p-gray200); border-radius: 5px; padding: .55rem .75rem; font-family: inherit; font-size: .875rem; outline: none; width: 100%; background: var(--p-gray50); color: var(--p-text); &:focus { border-color: var(--p-accent); } }
 
-    /* ── BARRA DE ATALHOS ──────────────────────────────────── */
-    .pdv-atalhos-bar {
-      display: flex; align-items: center; gap: 0; padding: 0 10px;
-      background: var(--p-navy2); border-top: 1px solid var(--p-blue);
-      overflow-x: auto; flex-shrink: 0;
-      &::-webkit-scrollbar { display: none; }
-    }
-    .atalho {
-      display: flex; align-items: center; gap: 5px; padding: 0 10px;
-      border-right: 1px solid rgba(255,255,255,.08); flex-shrink: 0; height: 32px;
-      &:last-child { border-right: none; }
-      kbd { font-size: 9px; padding: 2px 5px; background: rgba(255,255,255,.12);
-        border: 1px solid rgba(255,255,255,.2); border-radius: 3px; color: #5bc8ff;
-        font-family: inherit; white-space: nowrap; }
-      span { font-size: 10px; color: #7ab0d8; white-space: nowrap; }
-    }
+    /* ── BARRA DE ATALHOS ── */
+    .pdv-atalhos-bar { display: flex; align-items: center; gap: 0; padding: 0 10px; background: var(--p-navy2); border-top: 1px solid var(--p-blue); overflow-x: auto; flex-shrink: 0; &::-webkit-scrollbar { display: none; } }
+    .atalho { display: flex; align-items: center; gap: 5px; padding: 0 10px; border-right: 1px solid rgba(255,255,255,.08); flex-shrink: 0; height: 32px; &:last-child { border-right: none; } kbd { font-size: 9px; padding: 2px 5px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 3px; color: #5bc8ff; font-family: inherit; white-space: nowrap; } span { font-size: 10px; color: #7ab0d8; white-space: nowrap; } }
 
-    /* ── MODAIS ────────────────────────────────────────────── */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.5);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 1000; animation: fadeIn .15s; backdrop-filter: blur(2px);
-    }
-    .modal-box {
-      background: var(--p-white); border-radius: 12px; padding: 28px; width: 380px;
-      text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,.2);
-      animation: slideUp .2s ease-out; display: flex; flex-direction: column; gap: 12px;
-      border-top: 4px solid var(--p-navy);
-      h2 { font-size: 18px; font-weight: 700; color: var(--p-navy2); }
-      p  { font-size: 13px; color: var(--p-text2); strong { color: var(--p-text); } }
-    }
-    .modal-icon {
-      width: 56px; height: 56px; border-radius: 50%; margin: 0 auto;
-      display: flex; align-items: center; justify-content: center;
-      .material-symbols-rounded { font-size: 28px; font-variation-settings: 'FILL' 1; }
-      &.warn { background: var(--p-yellow-bg); color: var(--p-yellow); border: 2px solid rgba(176,125,0,.2); }
-    }
+    /* ── MODAIS ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn .15s; backdrop-filter: blur(2px); }
+    .modal-box { background: var(--p-white); border-radius: 12px; padding: 28px; width: 420px; max-width: 95vw; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,.2); animation: slideUp .2s ease-out; display: flex; flex-direction: column; gap: 14px; border-top: 4px solid var(--p-navy); h2 { font-size: 18px; font-weight: 700; color: var(--p-navy2); } p { font-size: 13px; color: var(--p-text2); strong { color: var(--p-text); } } }
+    .modal-icon { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; .material-symbols-rounded { font-size: 28px; font-variation-settings: 'FILL' 1; } &.warn  { background: var(--p-yellow-bg); color: var(--p-yellow); border: 2px solid rgba(176,125,0,.2); } &.fechar { background: #fff5f5; color: var(--p-red); border: 2px solid rgba(192,57,43,.2); } }
     .modal-acoes { display: flex; gap: 10px; }
-    .btn-modal {
-      flex: 1; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 700;
-      cursor: pointer; border: 2px solid var(--p-gray200); background: var(--p-gray50);
-      color: var(--p-text2); font-family: inherit; transition: all .15s;
-      &:hover { border-color: var(--p-accent); color: var(--p-navy); background: var(--p-blue-bg); }
-      &.danger { background: var(--p-red-bg); border-color: rgba(192,57,43,.3); color: var(--p-red);
-        &:hover { background: rgba(192,57,43,.15); } }
-    }
+    .btn-modal { flex: 1; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; border: 2px solid var(--p-gray200); background: var(--p-gray50); color: var(--p-text2); font-family: inherit; transition: all .15s; &:hover { border-color: var(--p-accent); color: var(--p-navy); background: var(--p-blue-bg); } &.danger { background: var(--p-red-bg); border-color: rgba(192,57,43,.3); color: var(--p-red); &:hover { background: rgba(192,57,43,.15); } } }
 
-    /* SPINNER */
-    .spin-btn {
-      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
-      border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite;
-    }
+    /* Resumo do caixa no modal de fechar */
+    .resumo-caixa { background: var(--p-gray50); border-radius: 8px; padding: 10px 14px; width: 100%; border: 1px solid var(--p-gray200); }
+    .rc-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; color: var(--p-text2); border-bottom: 1px solid var(--p-gray100); &:last-child { border-bottom: none; } strong { font-family: 'Roboto Mono', monospace; color: var(--p-text); } }
 
-    /* ── ANIMAÇÕES ─────────────────────────────────────────── */
+    .spin-btn { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+
+    /* ── ANIMAÇÕES ── */
     @keyframes spin       { to { transform: rotate(360deg); } }
     @keyframes fadeIn     { from { opacity: 0; } to { opacity: 1; } }
     @keyframes slideUp    { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
@@ -953,16 +751,26 @@ export class CaixaComponent implements OnInit, OnDestroy {
   private produtoSvc = inject(ProdutoService);
   private snack      = inject(MatSnackBar);
 
+  // ── Estado do caixa ──
   caixaAberto  = signal(false);
   caixaInfo    = signal<Caixa | null>(null);
   abrindo      = signal(false);
   valorAbertura = 0;
 
+  // ── Perfil do usuário logado ──
+  perfilUsuario = signal<string>('OPERADOR');
+
+  // ── Modal de fechar caixa (substitui o prompt() nativo) ──
+  modalFecharAberto  = signal(false);
+  valorContagemCaixa = 0;
+
+  // ── Carrinho ──
   carrinho             = signal<CarrinhoItem[]>([]);
   itemSelecionadoIndex : number | null = null;
   ultimoAdicionadoId   : number | null = null;
   ultimoProduto        = '';
 
+  // ── Busca ──
   buscaInput      = '';
   resultadosBusca = signal<Produto[]>([]);
   sugestaoIndex   = -1;
@@ -970,11 +778,13 @@ export class CaixaComponent implements OnInit, OnDestroy {
   erroBipar       = false;
   msgErro         = '';
 
+  // ── Pagamento ──
   formaPagamento = signal<FormaPagamento>('DINHEIRO');
   valorRecebido  = signal(0);
   registrando    = signal(false);
   ultimaVenda    = signal<Venda | null>(null);
 
+  // ── Movimentações ──
   movimentacoes  = signal<MovimentacaoCaixa[]>([]);
   modalMovAberto = signal(false);
   tipoMov        = signal<'SANGRIA' | 'SUPRIMENTO'>('SANGRIA');
@@ -987,7 +797,6 @@ export class CaixaComponent implements OnInit, OnDestroy {
   showModalCancelar = false;
   operador = ''; horaAtual = ''; dataAtual = '';
 
-  // ALTERE SOMENTE AQUI PARA PERSONALIZAR A LOJA DO CLIENTE
   lojaConfig = {
     nome: 'Bira & Naite Distribuidora',
     descricao: 'Sistema de caixa personalizado para a loja',
@@ -1002,9 +811,15 @@ export class CaixaComponent implements OnInit, OnDestroy {
     { value: 'CARTAO_CREDITO' as FormaPagamento, label: 'Crédito',  icon: '💳', key: 'F7' },
   ];
 
+  // ── Computed ──
   totalCarrinho = computed(() => this.carrinho().reduce((s, i) => s + i.subtotal, 0));
   totalItens    = computed(() => this.carrinho().reduce((s, i) => s + i.quantidade, 0));
   troco         = computed(() => this.valorRecebido() - this.totalCarrinho());
+
+  /** Apenas GERENTE e ADMIN podem fechar o caixa */
+  podeFecharCaixa = computed(() =>
+    ['GERENTE', 'ADMIN'].includes(this.perfilUsuario())
+  );
 
   podeFinalizarVenda = computed(() => {
     if (this.carrinho().length === 0 || this.registrando()) return false;
@@ -1018,8 +833,10 @@ export class CaixaComponent implements OnInit, OnDestroy {
   private busca$     = new Subject<string>();
 
   ngOnInit(): void {
-    this.carregarOperador(); this.iniciarRelogio();
-    this.configurarBusca(); this.verificarCaixa();
+    this.carregarOperador();
+    this.iniciarRelogio();
+    this.configurarBusca();
+    this.verificarCaixa();
   }
 
   ngOnDestroy(): void {
@@ -1031,13 +848,18 @@ export class CaixaComponent implements OnInit, OnDestroy {
   onKeydown(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
       e.preventDefault();
-      this.showModalCancelar = false; this.resultadosBusca.set([]); this.erroBipar = false; this.focarInput(); return;
+      this.showModalCancelar = false;
+      this.modalFecharAberto.set(false);
+      this.resultadosBusca.set([]);
+      this.erroBipar = false;
+      this.focarInput();
+      return;
     }
     if (this.resultadosBusca().length > 0) {
       if (e.key === 'ArrowDown') { e.preventDefault(); this.sugestaoIndex = Math.min(this.sugestaoIndex + 1, this.resultadosBusca().length - 1); return; }
       if (e.key === 'ArrowUp')   { e.preventDefault(); this.sugestaoIndex = Math.max(this.sugestaoIndex - 1, 0); return; }
     }
-    if (this.showModalCancelar || this.mostrarAuthMov() || this.modalMovAberto()) return;
+    if (this.showModalCancelar || this.mostrarAuthMov() || this.modalMovAberto() || this.modalFecharAberto()) return;
     switch (e.key) {
       case 'F1': e.preventDefault(); this.selecionarPagamento('DINHEIRO'); break;
       case 'F2': e.preventDefault(); this.focarInput(); break;
@@ -1046,7 +868,7 @@ export class CaixaComponent implements OnInit, OnDestroy {
       case 'F6': e.preventDefault(); this.selecionarPagamento('CARTAO_DEBITO'); break;
       case 'F7': e.preventDefault(); this.selecionarPagamento('CARTAO_CREDITO'); break;
       case 'F8': e.preventDefault(); if (this.podeFinalizarVenda()) this.finalizarVenda(); break;
-      case 'F9': e.preventDefault(); this.fecharCaixa(); break;
+      case 'F9': e.preventDefault(); this.abrirModalFecharCaixa(); break;
       case 'Delete': e.preventDefault(); e.ctrlKey ? this.confirmarLimpar() : this.removerItemSelecionado(); break;
     }
   }
@@ -1057,7 +879,15 @@ export class CaixaComponent implements OnInit, OnDestroy {
   }
 
   private carregarOperador(): void {
-    try { const u = TokenHelper.getUser(); this.operador = u?.nome || u?.email || 'Operador'; } catch { this.operador = 'Operador'; }
+    try {
+      const u = TokenHelper.getUser();
+      this.operador     = u?.nome || u?.email || 'Operador';
+      // Lê o perfil do token para controle de permissões
+      this.perfilUsuario.set(u?.perfil || u?.role || 'OPERADOR');
+    } catch {
+      this.operador = 'Operador';
+      this.perfilUsuario.set('OPERADOR');
+    }
   }
 
   private iniciarRelogio(): void {
@@ -1098,16 +928,56 @@ export class CaixaComponent implements OnInit, OnDestroy {
     });
   }
 
-  fecharCaixa(): void {
-    const vlr = parseFloat(prompt('Informe o valor contado no caixa (R$):') ?? '');
-    if (isNaN(vlr)) return;
-    this.caixaSvc.fechar(vlr).subscribe({
+  /** Abre o modal de fechar — bloqueia para OPERADOR */
+  abrirModalFecharCaixa(): void {
+    if (!this.podeFecharCaixa()) {
+      this.snack.open(
+        '🔒 Apenas Gerentes e Administradores podem fechar o caixa.',
+        'Entendi',
+        { duration: 5000 }
+      );
+      return;
+    }
+    this.valorContagemCaixa = 0;
+    this.modalFecharAberto.set(true);
+  }
+
+  /** Confirma o fechamento com o valor contado */
+  confirmarFechamentoCaixa(): void {
+    if (this.valorContagemCaixa < 0) {
+      this.snack.open('Informe um valor válido (≥ 0)', '', { duration: 3000 });
+      return;
+    }
+    this.modalFecharAberto.set(false);
+    this.caixaSvc.fechar(this.valorContagemCaixa).subscribe({
       next: r => {
-        this.caixaAberto.set(false); this.caixaInfo.set(null); this.movimentacoes.set([]);
-        const dif = r.diferenca >= 0 ? `+R$ ${r.diferenca.toFixed(2)}` : `-R$ ${Math.abs(r.diferenca).toFixed(2)}`;
-        this.snack.open(`Caixa fechado · ${r.quantidadeVendas} vendas · Diferença: ${dif}`, '', { duration: 6000 });
+        this.caixaAberto.set(false);
+        this.caixaInfo.set(null);
+        this.movimentacoes.set([]);
+        const sinal = r.diferenca >= 0 ? '+' : '-';
+        const abs   = Math.abs(r.diferenca).toFixed(2);
+        this.snack.open(
+          `✓ Caixa fechado · ${r.quantidadeVendas} vendas · Diferença: ${sinal}R$ ${abs}`,
+          '',
+          { duration: 6000 }
+        );
       },
-      error: err => this.snack.open(err.error?.message || 'Erro ao fechar caixa', '', { duration: 4000 }),
+      error: err => {
+        // 403 = sem permissão no backend
+        if (err.status === 403) {
+          this.snack.open(
+            '🔒 Sem permissão para fechar o caixa. Solicite a um Gerente ou Administrador.',
+            'Fechar',
+            { duration: 6000 }
+          );
+        } else {
+          this.snack.open(
+            err.error?.message || 'Erro ao fechar caixa',
+            'Fechar',
+            { duration: 4000 }
+          );
+        }
+      },
     });
   }
 
@@ -1220,7 +1090,7 @@ export class CaixaComponent implements OnInit, OnDestroy {
       next: v => {
         this.ultimaVenda.set(v); this.limparCarrinho(); this.valorRecebido.set(0);
         this.registrando.set(false); this.audioBeepVenda(); this.verificarCaixa();
-        this.snack.open(`Venda ${v.numeroVenda} registrada!`, '', { duration: 3000 });
+        this.snack.open(`✓ Venda ${v.numeroVenda} registrada!`, '', { duration: 3000 });
       },
       error: err => { this.snack.open(err.error?.message || 'Erro ao registrar venda', '', { duration: 5000 }); this.registrando.set(false); },
     });
@@ -1232,7 +1102,7 @@ export class CaixaComponent implements OnInit, OnDestroy {
 
   abrirModalMov(tipo: 'SANGRIA' | 'SUPRIMENTO'): void {
     this.tipoMov.set(tipo); this.valorMov = 0; this.motivoMov = '';
-    if (TokenHelper.getUser()?.perfil === 'OPERADOR') {
+    if (this.perfilUsuario() === 'OPERADOR') {
       this.acaoPendente = () => this.modalMovAberto.set(true); this.mostrarAuthMov.set(true);
     } else this.modalMovAberto.set(true);
   }
@@ -1248,7 +1118,7 @@ export class CaixaComponent implements OnInit, OnDestroy {
     this.caixaSvc.registrarMovimentacao({ tipo: this.tipoMov(), valor: this.valorMov, motivo: this.motivoMov.trim() })
       .pipe(takeUntil(this.destroy$)).subscribe({
         next: () => {
-          this.snack.open(`${this.tipoMov() === 'SANGRIA' ? 'Sangria' : 'Suprimento'} registrado!`, '', { duration: 3000 });
+          this.snack.open(`✓ ${this.tipoMov() === 'SANGRIA' ? 'Sangria' : 'Suprimento'} registrado!`, '', { duration: 3000 });
           this.fecharModalMov(); this.salvandoMov.set(false);
           const id = this.caixaInfo()?.id;
           if (id) this.carregarMovimentacoes(id);

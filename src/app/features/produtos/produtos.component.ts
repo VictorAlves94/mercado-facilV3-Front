@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, ViewChild } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -7,14 +7,14 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
-import { ProdutoService, CategoriaService } from '../../core/services/services';
+import { Subject, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs';
+import { ProdutoService, CategoriaService, LojaService } from '../../core/services/services';
 import { Produto, Categoria, AlertasEstoque } from '../../core/models/models';
 import { LojaSelectorComponent } from '../loja-selector/loja-selector.component';
 
@@ -24,7 +24,7 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
   imports: [CommonModule, ReactiveFormsModule, MatTableModule, MatPaginatorModule,
     MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule,
     MatDialogModule, MatSelectModule, MatSnackBarModule, MatChipsModule,
-    MatTabsModule, MatTooltipModule, CurrencyPipe, DatePipe ,LojaSelectorComponent ],
+    MatTabsModule, MatTooltipModule, CurrencyPipe, DatePipe, LojaSelectorComponent],
   template: `
 <div class="mf-page">
   <div class="mf-section-header">
@@ -108,7 +108,7 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
           }
         </mat-select>
       </mat-form-field>
-    <app-loja-selector></app-loja-selector>
+      <app-loja-selector></app-loja-selector>
     </div>
   </div>
 
@@ -270,27 +270,21 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
     .preco-custo { font-size: .75rem; color: var(--mf-gray-400); font-family: var(--mf-mono); }
     .preco-venda { font-size: .9rem; font-weight: 600; color: var(--mf-gray-800); font-family: var(--mf-mono); }
     .produto-row:hover { background: var(--mf-gray-50); }
-
     .alerta-list { padding: .75rem 1rem; display: flex; flex-direction: column; gap: .5rem; }
     .alerta-item {
       display: flex; justify-content: space-between; align-items: center;
       padding: .5rem .75rem; border-radius: 6px; font-size: .875rem;
-      &.danger  { background: var(--mf-red-light); color: var(--mf-red); }
+      &.danger  { background: var(--mf-red-light);   color: var(--mf-red);   }
       &.warning { background: var(--mf-amber-light); color: var(--mf-amber); }
     }
-
-    .form-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 200;
-    }
+    .form-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 200; }
     .form-drawer {
       position: fixed; top: 0; right: 0; bottom: 0; width: 420px;
       background: white; z-index: 201; box-shadow: var(--mf-shadow-lg);
-      display: flex; flex-direction: column;
-      animation: slideIn .2s ease;
+      display: flex; flex-direction: column; animation: slideIn .2s ease;
       @media (max-width: 480px) { width: 100%; }
     }
     @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
     .drawer-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--mf-border);
@@ -306,59 +300,87 @@ import { LojaSelectorComponent } from '../loja-selector/loja-selector.component'
     .w-full { width: 100%; }
   `]
 })
-export class ProdutosComponent implements OnInit {
-  private produtoSvc  = inject(ProdutoService);
+export class ProdutosComponent implements OnInit, OnDestroy {
+  private produtoSvc   = inject(ProdutoService);
   private categoriaSvc = inject(CategoriaService);
-  private snack = inject(MatSnackBar);
-  private fb = inject(FormBuilder);
+  private lojaService  = inject(LojaService);
+  private snack        = inject(MatSnackBar);
+  private fb           = inject(FormBuilder);
+  private destroy$     = new Subject<void>();
 
   cols = ['nome', 'codigoBarras', 'estoque', 'precos', 'margem', 'validade', 'acoes'];
   dataSource = new MatTableDataSource<Produto>();
 
-  loading      = signal(true);
-  saving       = signal(false);
-  showForm     = signal(false);
-  editingId    = signal<number | null>(null);
+  loading        = signal(true);
+  saving         = signal(false);
+  showForm       = signal(false);
+  editingId      = signal<number | null>(null);
   totalElementos = signal(0);
-  categorias   = signal<Categoria[]>([]);
-  alertas      = signal<AlertasEstoque | null>(null);
+  categorias     = signal<Categoria[]>([]);
+  alertas        = signal<AlertasEstoque | null>(null);
 
-  private busca$ = new Subject<string>();
-  private buscaAtual = '';
-  private categoriaAtual: number | null = null;
-   private lojaAtual: number | null = null;
-  private paginaAtual = 0;
+  private busca$         = new Subject<string>();
+  private buscaAtual     = '';
+  private categoriaAtual : number | null = null;
+  private lojaAtual      : number | null = null;
+  private paginaAtual    = 0;
 
   produtoForm = this.fb.group({
-    nome: ['', [Validators.required, Validators.minLength(2)]],
-    codigoBarras: [''], descricao: [''], categoriaId: this.fb.control<number | null>(null),
-    quantidadeEstoque: [0, [Validators.required, Validators.min(0)]],
-    estoqueMinimo: [10], precoCusto: [0, [Validators.required, Validators.min(0.01)]],
-    precoVenda:   [0, [Validators.required, Validators.min(0.01)]],
-    dataValidade: ['']
+    nome:              ['', [Validators.required, Validators.minLength(2)]],
+    codigoBarras:      [''],
+    descricao:         [''],
+    categoriaId:       this.fb.control<number | null>(null),
+    quantidadeEstoque: [0,  [Validators.required, Validators.min(0)]],
+    estoqueMinimo:     [10],
+    precoCusto:        [0,  [Validators.required, Validators.min(0.01)]],
+    precoVenda:        [0,  [Validators.required, Validators.min(0.01)]],
+    dataValidade:      ['']
   });
 
   ngOnInit() {
-    this.carregarProdutos();
     this.carregarCategorias();
-    this.carregarAlertas();
+
     this.busca$.pipe(debounceTime(400), distinctUntilChanged())
       .subscribe(b => { this.buscaAtual = b; this.paginaAtual = 0; this.carregarProdutos(); });
+
+    // Recarrega automaticamente ao trocar de loja
+    this.lojaService.lojaSelecionadaId$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(id => {
+        if (id !== null) {
+          this.lojaAtual  = id;
+          this.paginaAtual = 0;
+          this.carregarProdutos();
+          this.carregarAlertas();
+        }
+      });
   }
 
- carregarProdutos() {
-    this.loading.set(true);
-    this.produtoSvc.listar(this.buscaAtual || undefined, this.categoriaAtual ?? undefined, this.paginaAtual, 20, this.lojaAtual ?? undefined)
-      .subscribe({ next: p => { this.dataSource.data = p.content; this.totalElementos.set(p.totalElementos); this.loading.set(false); },
-                   error: () => this.loading.set(false) });
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
+
+  carregarProdutos() {
+    this.loading.set(true);
+    this.produtoSvc.listar(
+      this.buscaAtual  || undefined,
+      this.categoriaAtual ?? undefined,
+      this.paginaAtual,
+      20,
+      this.lojaAtual   ?? undefined
+    ).subscribe({
+      next:  p  => { this.dataSource.data = p.content; this.totalElementos.set(p.totalElementos); this.loading.set(false); },
+      error: () => this.loading.set(false)
+    });
+  }
+
   carregarCategorias() { this.categoriaSvc.listar().subscribe(c => this.categorias.set(c)); }
   carregarAlertas()    { this.produtoSvc.getAlertas().subscribe(a => this.alertas.set(a)); }
 
-  onBusca(e: Event) { this.busca$.next((e.target as HTMLInputElement).value); }
+  onBusca(e: Event)          { this.busca$.next((e.target as HTMLInputElement).value); }
   onCategoria(id: number | null) { this.categoriaAtual = id; this.paginaAtual = 0; this.carregarProdutos(); }
-  onLojaChange(lojaId: number | null) { this.lojaAtual = lojaId; this.paginaAtual = 0; this.carregarProdutos(); }
-  onPage(e: any) { this.paginaAtual = e.pageIndex; this.carregarProdutos(); }
+  onPage(e: any)             { this.paginaAtual = e.pageIndex; this.carregarProdutos(); }
 
   abrirForm(p?: Produto) {
     this.editingId.set(p?.id ?? null);
@@ -369,6 +391,7 @@ export class ProdutosComponent implements OnInit {
     }
     this.showForm.set(true);
   }
+
   fecharForm() { this.showForm.set(false); }
 
   salvar() {
@@ -379,8 +402,14 @@ export class ProdutosComponent implements OnInit {
       ? this.produtoSvc.atualizar(this.editingId()!, req)
       : this.produtoSvc.criar(req);
     obs.subscribe({
-      next: () => { this.snack.open('Produto salvo com sucesso!', '', { duration: 3000 }); this.fecharForm(); this.carregarProdutos(); this.carregarAlertas(); this.saving.set(false); },
-      error: err => { this.snack.open(err.error?.message || 'Erro ao salvar produto', '', { duration: 4000 }); this.saving.set(false); }
+      next:  () => {
+        this.snack.open('Produto salvo com sucesso!', '', { duration: 3000 });
+        this.fecharForm(); this.carregarProdutos(); this.carregarAlertas(); this.saving.set(false);
+      },
+      error: err => {
+        this.snack.open(err.error?.message || 'Erro ao salvar produto', '', { duration: 4000 });
+        this.saving.set(false);
+      }
     });
   }
 
@@ -389,7 +418,7 @@ export class ProdutosComponent implements OnInit {
     if (isNaN(qtd) || qtd < 0) return;
     const motivo = prompt('Motivo do ajuste:') ?? 'Ajuste manual';
     this.produtoSvc.ajustarEstoque(p.id, { quantidade: qtd, tipo: 'AJUSTE_INVENTARIO', motivo }).subscribe({
-      next: () => { this.snack.open('Estoque ajustado!', '', { duration: 3000 }); this.carregarProdutos(); this.carregarAlertas(); },
+      next:  () => { this.snack.open('Estoque ajustado!', '', { duration: 3000 }); this.carregarProdutos(); this.carregarAlertas(); },
       error: err => this.snack.open(err.error?.message || 'Erro ao ajustar', '', { duration: 4000 })
     });
   }
@@ -397,7 +426,7 @@ export class ProdutosComponent implements OnInit {
   desativar(p: Produto) {
     if (!confirm(`Desativar "${p.nome}"?`)) return;
     this.produtoSvc.desativar(p.id).subscribe({
-      next: () => { this.snack.open('Produto desativado', '', { duration: 3000 }); this.carregarProdutos(); },
+      next:  () => { this.snack.open('Produto desativado', '', { duration: 3000 }); this.carregarProdutos(); },
       error: err => this.snack.open(err.error?.message || 'Erro', '', { duration: 4000 })
     });
   }
